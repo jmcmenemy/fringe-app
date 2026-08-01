@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect, useCallback } from "react";
+import { useState, useMemo, useRef, useEffect, useCallback, Component } from "react";
 import Papa from "papaparse";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdAFEpJDVvI1L_f5GgtZjscx7IyDlbDma2nwlFqZt-UdbeoXNwDOOijfZtV6jmeDmKkpD6BDD3fZ1y/pub?output=csv";
@@ -138,7 +138,7 @@ const StarIcon=()=>(<svg width="11" height="11" viewBox="0 0 16 16" fill="curren
 const XIcon=()=>(<svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor"><path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/></svg>);
 const SpinnerIcon=()=>(<svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" style={{animation:"spin 1s linear infinite"}}><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style><path d="M8 1a7 7 0 00-7 7h2a5 5 0 015-5V1z" opacity="0.7"/></svg>);
 
-export default function FringeCalendar(){
+function FringeCalendarInner(){
   const[allShows,setAllShows]=useState(FALLBACK_SHOWS);
   const[wishlist,setWishlist]=useState(FALLBACK_WISHLIST);
   const[recommendations,setRecommendations]=useState([]);
@@ -159,7 +159,6 @@ export default function FringeCalendar(){
   const[proposals,setProposals]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-proposals")||"[]");}catch{return[];}});
   const saveProposals=next=>{try{localStorage.setItem("fringe-proposals",JSON.stringify(next));}catch{}setProposals(next);};
   const shared=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]p=([^&]+)/);return m?decodeProposal(decodeURIComponent(m[1])):null;},[]);
-  useEffect(()=>{if(shared)return;const slug={list:"all",recs:"picks"}[view]||view;try{window.history.replaceState(null,"","#"+slug);}catch{}},[view,shared]);
   useEffect(()=>{const on=()=>{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return;const map={all:"list",picks:"recs"};const v=map[h]||h;if(["calendar","list","wishlist","recs","proposal"].includes(v))setView(v);};window.addEventListener("hashchange",on);return()=>window.removeEventListener("hashchange",on);},[]);
   const dayShowsFor=prop=>{const added=prop.shows||[];const key=s=>`${s.name}|${s.start}`.toLowerCase();const seen=new Set(added.map(key));const booked=allShows.filter(s=>s.booked&&s.date===prop.date&&!seen.has(key(s)));return[...added,...booked];};
   const newProposal=()=>saveProposals([...proposals,{id:"p"+Date.now(),title:"Proposed day",date:"",shows:[]}]);
@@ -169,6 +168,7 @@ export default function FringeCalendar(){
   const removeFromProposal=(id,idx)=>saveProposals(proposals.map(p=>p.id===id?{...p,shows:(p.shows||[]).filter((_,i)=>i!==idx)}:p));
   const shareProposal=prop=>{const token=encodeProposal({title:prop.title,date:prop.date,shows:dayShowsFor(prop)});const url=`${window.location.origin}${window.location.pathname}#p=${encodeURIComponent(token)}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Read-only link copied to clipboard:\n\n"+url);};
   const[view,setView]=useState(()=>{try{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return "calendar";const map={all:"list",picks:"recs"};const v=map[h]||h;return["calendar","list","wishlist","recs","proposal"].includes(v)?v:"calendar";}catch{return "calendar";}});
+  useEffect(()=>{if(shared)return;const slug={list:"all",recs:"picks"}[view]||view;try{window.history.replaceState(null,"","#"+slug);}catch{}},[view,shared]);
   const[selectedShow,setSelectedShow]=useState(null);
   const[filter,setFilter]=useState("all");
   const[weekIdx,setWeekIdx]=useState(0);
@@ -251,7 +251,7 @@ Use empty string "" for any field you cannot find.`}]})});
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>{shared.title||"Proposed day"}</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared plan · read-only</div>
       </div>
-      <div style={{padding:"0 12px"}}><ProposalDay date={shared.date} shows={shared.shows||[]}/></div>
+      <div style={{padding:"0 12px"}}><ErrorBoundary><ProposalDay date={shared.date} shows={shared.shows||[]}/></ErrorBoundary></div>
     </div>
   );}
   return(
@@ -320,7 +320,7 @@ Use empty string "" for any field you cannot find.`}]})});
             <span style={{fontSize:17,fontWeight:700,color:TXT}}>{(()=>{const m=new Date(currentMonday+"T12:00:00");const s=addDays(m,6);return`${m.getDate()} ${MONTHS[m.getMonth()]} – ${s.getDate()} ${MONTHS[s.getMonth()]}`;})()}</span>
             <NavBtn disabled={weekIdx>=weeks.length-1} onClick={()=>setWeekIdx(Math.min(weeks.length-1,weekIdx+1))}>›</NavBtn>
           </div>
-          <div ref={gridRef} style={{overflow:"auto",maxHeight:560,WebkitOverflowScrolling:"touch",position:"relative"}}>
+          <div ref={gridRef} style={{overflow:"auto",maxHeight:"calc(100vh - 150px)",WebkitOverflowScrolling:"touch",position:"relative"}}>
             <div style={{minWidth:600,position:"relative"}}>
               <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",borderBottom:`1px solid ${CARD_BORDER}`,position:"sticky",top:0,background:BG,zIndex:20}}>
                 <div style={{position:"sticky",left:0,zIndex:21,background:BG}}/>
@@ -473,18 +473,11 @@ Use empty string "" for any field you cannot find.`}]})});
                 <button onClick={()=>shareProposal(prop)} style={{padding:"7px 12px",borderRadius:10,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer"}}>Share</button>
                 <button onClick={()=>deleteProposal(prop.id)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:700,cursor:"pointer"}}>✕</button>
               </div>
-              <ProposalDay date={prop.date} shows={dayShowsFor(prop)}/>
+              <ErrorBoundary><ProposalDay date={prop.date} shows={dayShowsFor(prop)}/></ErrorBoundary>
               {(prop.shows||[]).length>0&&<div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>{(prop.shows||[]).map((s,i)=>(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(168,85,247,0.15)",color:"#C084FC",padding:"3px 9px",borderRadius:8,fontSize:12,fontWeight:600}}>{s.name}<span onClick={()=>removeFromProposal(prop.id,i)} style={{cursor:"pointer",opacity:0.8}}>✕</span></span>))}</div>}
               <details style={{marginTop:14}}>
                 <summary style={{cursor:"pointer",color:"#C084FC",fontWeight:700,fontSize:13}}>+ Add a show</summary>
-                <div style={{maxHeight:240,overflowY:"auto",marginTop:8,border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
-                  {[...wishlist,...recommendations,...allShows.filter(s=>s.booked)].filter(s=>s&&s.name).map((s,i)=>(
-                    <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"7px 10px",borderBottom:`1px solid ${CARD_BORDER}`}}>
-                      <span style={{fontSize:13,color:TXT2,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>{s.name} <span style={{color:TXT3}}>· {s.start?formatTime(s.start):"—"} · {s.venue}</span></span>
-                      <button onClick={()=>addToProposal(prop.id,s)} style={{flexShrink:0,width:26,height:26,borderRadius:8,border:"none",background:"rgba(168,85,247,0.25)",color:"#C084FC",fontSize:16,fontWeight:800,cursor:"pointer",lineHeight:1}}>+</button>
-                    </div>
-                  ))}
-                </div>
+                <AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked)]} onAdd={s=>addToProposal(prop.id,s)}/>
               </details>
             </div>
           ))}
@@ -532,7 +525,7 @@ Use empty string "" for any field you cannot find.`}]})});
                 <div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Interest</div>
                 <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {INTERESTS.map(it=>{const sel=interests[reviewKey(selectedShow)]===it.v;return(
-                    <button key={it.v} onClick={()=>setInterest(selectedShow,it.v)} title={it.label} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 10px",borderRadius:10,cursor:"pointer",border:`1px solid ${sel?it.color:CARD_BORDER}`,background:sel?`${it.color}22`:"transparent",color:it.color,fontSize:12,fontWeight:700}}>
+                    <button key={it.v} onClick={()=>setInterest(selectedShow,sel?null:it.v)} title={it.label} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 10px",borderRadius:10,cursor:"pointer",border:`1px solid ${sel?it.color:CARD_BORDER}`,background:sel?`${it.color}22`:"transparent",color:it.color,fontSize:12,fontWeight:700}}>
                       <InterestIcon kind={it.icon} size={15}/>{it.label}
                     </button>
                   );})}
@@ -600,6 +593,25 @@ function fmtMin(m){if(m==null)return "\u2014";m=((m%1440)+1440)%1440;const h=Mat
 function proposalStats(shows){const st=[],en=[];let cost=0;(shows||[]).forEach(s=>{cost+=poundsOf(s.price);const a=timeToMinutes(s.start);if(a!=null){st.push(a);let e=timeToMinutes(s.end);if(e==null)e=a;if(e<a)e+=1440;en.push(e);}});return{startMin:st.length?Math.min(...st):null,endMin:en.length?Math.max(...en):null,cost};}
 function encodeProposal(o){try{return btoa(encodeURIComponent(JSON.stringify(o)));}catch(e){return "";}}
 function decodeProposal(t){try{return JSON.parse(decodeURIComponent(atob(t)));}catch(e){return null;}}
+class ErrorBoundary extends Component{
+  constructor(p){super(p);this.state={err:null};}
+  static getDerivedStateFromError(e){return {err:e};}
+  render(){if(this.state.err)return <div style={{padding:24,color:TXT,fontFamily:"system-ui,-apple-system,sans-serif",maxWidth:600,margin:"0 auto"}}><div style={{fontWeight:800,fontSize:18,marginBottom:8}}>Something went wrong.</div><div style={{fontSize:13,color:"#F87171",marginBottom:14,wordBreak:"break-word"}}>{String((this.state.err&&this.state.err.message)||this.state.err)}</div><button onClick={()=>{try{location.reload();}catch(e){}}} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"#A855F7",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>Reload</button></div>;return this.props.children;}
+}
+function AddShowList({shows,onAdd}){
+  const [q,setQ]=useState("");
+  const list=[...(shows||[])].filter(s=>s&&s.name).sort((a,b)=>{const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).filter(s=>{const t=q.trim().toLowerCase();return !t||s.name.toLowerCase().includes(t);});
+  return (<div style={{marginTop:8}}>
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search shows by name..." style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+    <div style={{maxHeight:240,overflowY:"auto",border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
+      {list.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
+        <span style={{fontSize:13,color:TXT2,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><b style={{color:TXT}}>{s.start?formatTime(s.start):"—"}</b> · {s.name} <span style={{color:TXT3}}>· {s.venue}</span></span>
+        <span style={{flexShrink:0,width:26,height:26,borderRadius:8,background:"rgba(168,85,247,0.25)",color:"#C084FC",fontSize:16,fontWeight:800,lineHeight:"26px",textAlign:"center"}}>+</span>
+      </div>))}
+      {list.length===0&&<div style={{padding:"10px",fontSize:12,color:TXT3,textAlign:"center"}}>No matches.</div>}
+    </div>
+  </div>);
+}
 function normDayMin(t){let m=timeToMinutes(t);if(m==null)return null;if(m<360)m+=1440;return m;}
 function ProposalDay({date,shows}){
   const items=(shows||[]).filter(s=>s.start).map(s=>{const sm=normDayMin(s.start);let em=normDayMin(s.end);if(em==null||em<=sm)em=sm+60;return {...s,_s:sm,_e:em};}).sort((a,b)=>a._s-b._s);
@@ -608,11 +620,11 @@ function ProposalDay({date,shows}){
   const summary=(<div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.05)",fontWeight:600,lineHeight:1.5}}><span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span></div>);
   if(items.length===0)return <div>{summary}<div style={{fontSize:13,color:TXT3,textAlign:"center",padding:"14px"}}>No shows with times yet.</div></div>;
   const minS=Math.min(...items.map(i=>i._s)),maxE=Math.max(...items.map(i=>i._e));
-  const startH=Math.floor(minS/60),endH=Math.ceil(maxE/60),HOUR=54,rangeTop=startH*60,gh=(endH-startH)*HOUR;
+  const startH=Math.floor(minS/60),endH=Math.ceil(maxE/60),HOUR=56,rangeTop=startH*60,gh=(endH-startH)*HOUR;
   const lanes=[];items.forEach(it=>{let placed=false;for(let li=0;li<lanes.length;li++){if(lanes[li][lanes[li].length-1]._e<=it._s){lanes[li].push(it);it._lane=li;placed=true;break;}}if(!placed){it._lane=lanes.length;lanes.push([it]);}});
   const nLanes=Math.max(1,lanes.length);
   items.forEach(it=>{it._ov=items.some(o=>o!==it&&o._s<it._e&&it._s<o._e);});
-  const warns=[];for(let k=1;k<items.length;k++){const a=items[k-1],b=items[k];const gap=b._s-a._e;const need=requiredGapMin(a,b);const w=walkMinutes(a,b);if(gap<need)warns.push({a,b,gap,need,w});}
+  const travels=[];for(let k=1;k<items.length;k++){const a=items[k-1],b=items[k];const gap=b._s-a._e;if(gap<0)continue;const need=requiredGapMin(a,b);const w=walkMinutes(a,b);travels.push({top:(a._e-rangeTop)/60*HOUR,h:Math.max(18,gap/60*HOUR-2),ok:gap>=need,gap,need,w});}
   return (<div>
     {summary}
     <div style={{display:"flex",background:"rgba(255,255,255,0.02)",borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflow:"hidden"}}>
@@ -621,19 +633,27 @@ function ProposalDay({date,shows}){
       </div>
       <div style={{flex:1,position:"relative",height:gh,borderLeft:`1px solid ${CARD_BORDER}`}}>
         {Array.from({length:endH-startH},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR,left:0,right:0,height:1,background:"rgba(255,255,255,0.06)"}}/>))}
-        {items.map((it,k)=>{const top=(it._s-rangeTop)/60*HOUR;const bh=Math.max(22,(it._e-it._s)/60*HOUR-2);const w=100/nLanes;const col=gc2(it.organiser).bg;const proposed=!it.booked;return(
-          <div key={k} title={it.name+" — "+formatTime(it.start)} style={{position:"absolute",top,height:bh,left:`calc(${it._lane*w}% + 3px)`,width:`calc(${w}% - 6px)`,background:col,opacity:proposed?1:0.4,borderRadius:8,padding:"3px 6px",overflow:"hidden",color:"#fff",boxSizing:"border-box",boxShadow:it._ov?"0 0 0 2px #EF4444":"none",border:proposed?"none":"1px dashed rgba(255,255,255,0.6)"}}>
-            <div style={{fontSize:12,fontWeight:700,lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.name}</div>
-            <div style={{fontSize:10,opacity:0.9}}>{formatTime(it.start)}{it.price?" · ":""}{it.price?<b>{it.price}</b>:""}{proposed?"":" · booked"}</div>
+        {travels.map((t,i)=>(<div key={"t"+i} style={{position:"absolute",top:t.top+1,height:t.h,left:2,right:2,borderRadius:6,zIndex:1,background:t.ok?"rgba(52,211,153,0.14)":"rgba(239,68,68,0.16)",border:`1px dashed ${t.ok?"#34D399":"#EF4444"}`,display:"flex",alignItems:"center",justifyContent:"center",gap:5,overflow:"hidden",fontSize:11,fontWeight:700,color:t.ok?"#34D399":"#EF4444",padding:"0 6px",textAlign:"center"}}>🚶 {t.w!=null?`${t.w} min walk`:"walk"} · {t.gap} min gap{t.ok?"":` · too tight, need ${t.need}`}</div>))}
+        {items.map((it,k)=>{const top=(it._s-rangeTop)/60*HOUR;const bh=Math.max(34,(it._e-it._s)/60*HOUR-2);const w=100/nLanes;const col=gc2(it.organiser).bg;const proposed=!it.booked;return(
+          <div key={k} style={{position:"absolute",top,height:bh,left:`calc(${it._lane*w}% + 3px)`,width:`calc(${w}% - 6px)`,background:col,opacity:proposed?1:0.4,borderRadius:8,padding:"4px 8px",overflow:"hidden",color:"#fff",boxSizing:"border-box",zIndex:2,display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,boxShadow:it._ov?"0 0 0 2px #EF4444":"none",border:proposed?"none":"1px dashed rgba(255,255,255,0.6)"}}>
+            <div style={{minWidth:0,flex:1}}>
+              <div style={{fontSize:14,fontWeight:700,lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.name}</div>
+              <div style={{fontSize:14,fontWeight:600,opacity:0.9,whiteSpace:"nowrap"}}>{formatTime(it.start)}{proposed?"":" · booked"}</div>
+            </div>
+            <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
+              {it.price&&<span style={{fontSize:15,fontWeight:800,whiteSpace:"nowrap"}}>{it.price}</span>}
+              {it.link&&<a href={it.link} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} title="Open show page" style={{color:"#fff",textDecoration:"none",fontSize:15,fontWeight:800,opacity:0.9}}>↗</a>}
+            </div>
           </div>);})}
       </div>
     </div>
     <div style={{display:"flex",gap:14,marginTop:8,fontSize:11,color:TXT3,flexWrap:"wrap",alignItems:"center"}}>
       <span style={{display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:3,background:"#A855F7",display:"inline-block"}}/>proposed</span>
       <span style={{display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:3,background:"#A855F7",opacity:0.4,display:"inline-block"}}/>already booked</span>
-      <span style={{color:"#EF4444"}}>red outline = overlap</span>
+      <span style={{color:"#34D399"}}>green = travel ok</span>
+      <span style={{color:"#EF4444"}}>red = too tight / overlap</span>
+      <span>↗ opens the show page</span>
     </div>
-    {warns.length>0&&<div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>{warns.map((w,k)=>(<div key={k} style={{fontSize:12,color:"#F59E0B",fontWeight:600}}>⚠ {w.a.name} → {w.b.name}: {w.gap} min gap{w.w!=null?` (${w.w} min walk)`:""}, needs {w.need}</div>))}</div>}
   </div>);
 }
 const INTERESTS=[
@@ -673,7 +693,7 @@ function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,
             </div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
-            <div style={{fontSize:18,fontWeight:800,color:wishlist?(timeBucketColor(show.start)||TXT):TXT}}>{formatTime(show.start)}</div>
+            <div style={{fontSize:18,fontWeight:800,color:timeBucketColor(show.start)||TXT}}>{formatTime(show.start)}</div>
             <div style={{fontSize:12,color:TXT2}}>{show.duration}</div>
           </div>
         </div>
@@ -706,4 +726,8 @@ function NavBtn({disabled,onClick,children}){
 }
 function Dt({l,children}){
   return <div><div style={{fontSize:12,color:TXT3,marginBottom:2,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>{l}</div><div style={{fontWeight:600,color:TXT}}>{children}</div></div>;
+}
+
+export default function FringeCalendar(){
+  return <ErrorBoundary><FringeCalendarInner/></ErrorBoundary>;
 }
