@@ -122,6 +122,13 @@ function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function getWeeks(shows){const m=new Set();shows.filter(s=>s.date).forEach(s=>m.add(dateToStr(getMonday(s.date))));return[...m].sort();}
 function extractPostcode(a){if(!a)return null;const m=a.match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i);return m?m[0]:null;}
 function mapsUrl(a){return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}`;}
+function pad2(n){return String(n).padStart(2,"0");}
+function fIcsStamp(dateISO,hm){const[y,mo,da]=dateISO.split("-");const[h,mi]=(hm||"00:00").split(":");return `${y}${mo}${da}T${pad2(h)}${pad2(mi)}00`;}
+function fAddDayISO(dateISO){const d=new Date(dateISO+"T12:00:00");d.setDate(d.getDate()+1);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
+function fEndInfo(s){let endDate=s.date,end=s.end||s.start||"00:00";if(s.end&&s.start&&timeToMinutes(s.end)<=timeToMinutes(s.start))endDate=fAddDayISO(s.date);return{endDate,end};}
+function icsForShow(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const esc=t=>String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");const uid=(String(s.name)+s.date+start).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"@fringe-app";const desc=[s.price?("Price: "+s.price):"",s.attendees?("With: "+s.attendees):"",s.notes||""].filter(Boolean).join("\n");const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//fringe-app//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+uid,"DTSTAMP:"+fIcsStamp(s.date,start),"DTSTART:"+fIcsStamp(s.date,start),"DTEND:"+fIcsStamp(endDate,end),"SUMMARY:"+esc(s.name+(s.venue?(" | "+s.venue):"")),s.address?("LOCATION:"+esc(s.address)):"",s.link?("URL:"+esc(s.link)):"","DESCRIPTION:"+esc(desc),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Reminder","TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"].filter(Boolean);return lines.join("\r\n");}
+function downloadShowICS(s){const blob=new Blob([icsForShow(s)],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(String(s.name)||"show").replace(/[^a-z0-9]+/gi,"-").toLowerCase().replace(/^-|-$/g,"")+".ics";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}
+function gcalUrl(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const q=new URLSearchParams({action:"TEMPLATE",text:s.name+(s.venue?(" | "+s.venue):""),dates:fIcsStamp(s.date,start)+"/"+fIcsStamp(endDate,end),location:s.address||s.venue||"",details:s.link||"",ctz:"Europe/London"});return "https://calendar.google.com/calendar/render?"+q.toString();}
 function matchesSearch(show,q){if(!q)return true;const l=q.toLowerCase();return[show.name,show.venue,show.start,show.end,show.attendees,show.organiser,show.address,show.price].filter(Boolean).some(f=>f.toLowerCase().includes(l));}
 
 const UserIcon=()=>(<svg width="11" height="11" viewBox="0 0 16 16" fill="currentColor" style={{flexShrink:0,opacity:0.7}}><path d="M8 8a3 3 0 100-6 3 3 0 000 6zm-5.5 7a5.5 5.5 0 0111 0H2.5z"/></svg>);
@@ -136,6 +143,19 @@ export default function FringeCalendar(){
   const[wishlist,setWishlist]=useState(FALLBACK_WISHLIST);
   const[recommendations,setRecommendations]=useState([]);
   const[dataSource,setDataSource]=useState("saved");
+  const[lastUpdated,setLastUpdated]=useState(null);
+  const[scrolled,setScrolled]=useState(false);
+  const[reviews,setReviews]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-reviews")||"{}");}catch{return{};}});
+  const reviewKey=s=>`${s.name}|${s.date||""}|${s.start||""}`.toLowerCase();
+  const setReview=(s,v)=>setReviews(prev=>{const next={...prev,[reviewKey(s)]:v};try{localStorage.setItem("fringe-reviews",JSON.stringify(next));}catch{}return next;});
+  const[interests,setInterests]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-interests")||"{}");}catch{return{};}});
+  const setInterest=(s,v)=>setInterests(prev=>{const next={...prev,[reviewKey(s)]:v};try{localStorage.setItem("fringe-interests",JSON.stringify(next));}catch{}return next;});
+  const[tagMap,setTagMap]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-tags")||"{}");}catch{return{};}});
+  const saveTags=next=>{try{localStorage.setItem("fringe-tags",JSON.stringify(next));}catch{}return next;};
+  const addTag=(s,t)=>setTagMap(prev=>{const k=reviewKey(s);const cur=prev[k]||[];if(!t||cur.includes(t))return prev;return saveTags({...prev,[k]:[...cur,t]});});
+  const removeTag=(s,t)=>setTagMap(prev=>{const k=reviewKey(s);return saveTags({...prev,[k]:(prev[k]||[]).filter(x=>x!==t)});});
+  const [modalTagAdding,setModalTagAdding]=useState(false);
+  const [modalTagInput,setModalTagInput]=useState("");
   const[view,setView]=useState("calendar");
   const[selectedShow,setSelectedShow]=useState(null);
   const[filter,setFilter]=useState("all");
@@ -149,10 +169,11 @@ export default function FringeCalendar(){
   const[addLoading,setAddLoading]=useState(false);
   const[addError,setAddError]=useState("");
   const gridRef=useRef(null);
+  useEffect(()=>{const on=()=>setScrolled(window.scrollY>60);on();window.addEventListener("scroll",on,{passive:true});return()=>window.removeEventListener("scroll",on);},[]);
 
   useEffect(()=>{(async()=>{try{const r=await window.storage.get("fringe-recommendations");if(r&&r.value)setRecommendations(JSON.parse(r.value));}catch{}})();},[]);
   const saveRecs=useCallback(async(recs)=>{setRecommendations(recs);try{await window.storage.set("fringe-recommendations",JSON.stringify(recs));}catch{}},[]);
-  useEffect(()=>{(async()=>{try{const res=await fetch(SHEET_URL);if(!res.ok)return;const text=await res.text();const{shows,wishlist:wl}=parseCSVToShows(text);if(shows.length>0){setAllShows(shows);setWishlist(wl);setDataSource("live");}}catch{}})();},[]);
+  useEffect(()=>{(async()=>{try{const res=await fetch(SHEET_URL);if(!res.ok)return;const text=await res.text();const{shows,wishlist:wl}=parseCSVToShows(text);if(shows.length>0){setAllShows(shows);setWishlist(wl);setDataSource("live");setLastUpdated(new Date());}}catch{}})();},[]);
 
   const filteredShows=useMemo(()=>{let s=allShows.filter(s=>s.date);if(filter==="booked")s=s.filter(s=>s.booked===1);else if(filter==="unbooked")s=s.filter(s=>s.booked===0);else if(filter!=="all")s=s.filter(s=>s.organiser===filter);if(searchQuery.trim())s=s.filter(s=>matchesSearch(s,searchQuery));if(timeFilter!=="all"){s=s.filter(sh=>{const m=timeToMinutes(sh.start);if(m===null)return false;if(timeFilter==="morning")return m<720;if(timeFilter==="afternoon")return m>=720&&m<1020;if(timeFilter==="evening")return m>=1020&&m<1320;if(timeFilter==="late")return m>=1320||m<120;return true;});}return s;},[filter,allShows,searchQuery,timeFilter]);
   const weeks=useMemo(()=>getWeeks(filteredShows),[filteredShows]);
@@ -174,10 +195,11 @@ export default function FringeCalendar(){
 
   const totalSpend=useMemo(()=>allShows.filter(s=>s.booked===1&&s.price).reduce((sum,s)=>{const n=parseFloat(s.price.replace("£","").replace("Free","0"));return sum+(isNaN(n)?0:n*(s.tickets||1));},0),[allShows]);
   const bookedCount=allShows.filter(s=>s.booked===1).length;
+  const bookedDays=useMemo(()=>new Set(allShows.filter(s=>s.booked===1&&s.date).map(s=>s.date)).size,[allShows]);
   const organisers=useMemo(()=>[...new Set(allShows.map(s=>s.organiser).filter(Boolean))],[allShows]);
   const dates=useMemo(()=>[...new Set(filteredShows.map(s=>s.date))].sort(),[filteredShows]);
-  const refreshData=async()=>{try{const res=await fetch(SHEET_URL);if(!res.ok)return;const text=await res.text();const{shows,wishlist:wl}=parseCSVToShows(text);if(shows.length>0){setAllShows(shows);setWishlist(wl);setDataSource("live");}}catch{}};
-  const filteredWishlist=useMemo(()=>{if(!searchQuery.trim())return wishlist;return wishlist.filter(s=>matchesSearch(s,searchQuery));},[wishlist,searchQuery]);
+  const refreshData=async()=>{try{const res=await fetch(SHEET_URL);if(!res.ok)return;const text=await res.text();const{shows,wishlist:wl}=parseCSVToShows(text);if(shows.length>0){setAllShows(shows);setWishlist(wl);setDataSource("live");setLastUpdated(new Date());}}catch{}};
+  const filteredWishlist=useMemo(()=>{const base=searchQuery.trim()?wishlist.filter(s=>matchesSearch(s,searchQuery)):wishlist;const tm=x=>{const m=timeToMinutes(x.start);return m===null?1e9:m;};return[...base].sort((a,b)=>tm(a)-tm(b));},[wishlist,searchQuery]);
   const filteredRecs=useMemo(()=>{let r=recommendations;if(filter!=="all"&&filter!=="booked"&&filter!=="unbooked")r=r.filter(x=>x.organiser===filter);if(searchQuery.trim())r=r.filter(x=>matchesSearch(x,searchQuery));return r;},[recommendations,filter,searchQuery]);
 
   const handleAddShow=async()=>{
@@ -214,44 +236,57 @@ Use empty string "" for any field you cannot find.`}]})});
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:960,margin:"0 auto",color:TXT,padding:"0 4px",background:BG,minHeight:"100vh"}}>
 
       {/* HEADER */}
-      <div style={{textAlign:"center",padding:"32px 16px 24px",background:`linear-gradient(180deg, rgba(168,85,247,0.15) 0%, transparent 100%)`,borderBottom:`1px solid ${CARD_BORDER}`}}>
-        <div style={{fontSize:13,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:TXT2,marginBottom:8}}>Edinburgh</div>
-        <h1 style={{fontSize:40,fontWeight:900,letterSpacing:"-1px",margin:0,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>FRINGE 2026</h1>
-        <div style={{display:"flex",justifyContent:"center",gap:16,marginTop:12,fontSize:13,color:TXT2}}>
-        </div>
-        <p onClick={refreshData} style={{fontSize:12,color:TXT3,margin:"8px 0 16px",cursor:"pointer",letterSpacing:"0.5px"}}>
-          {dataSource==="live"?"✓ LIVE FROM GOOGLE SHEETS":"USING SAVED DATA · TAP TO REFRESH"}
-        </p>
-        <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap",alignItems:"center"}}>
-          <TabBtn active={view==="calendar"} onClick={()=>setView("calendar")}>Calendar</TabBtn>
-          <TabBtn active={view==="list"} onClick={()=>setView("list")}>View All</TabBtn>
-          <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Wishlist</TabBtn>
-          <TabBtn active={view==="recs"} onClick={()=>setView("recs")} accent>Picks</TabBtn>
-          <span style={{fontSize:13,color:TXT3,fontWeight:600,padding:"6px 12px",borderRadius:20,background:"rgba(255,255,255,0.06)",marginLeft:2}}>{bookedCount} shows</span>
-        </div>
-      </div>
-
-      {/* FILTERS */}
-      <div style={{display:"flex",gap:5,padding:"14px 8px 6px",flexWrap:"wrap",justifyContent:"center",alignItems:"center"}}>
-        <Chip a={filter==="all"} o={()=>setFilter("all")}>All</Chip>
-        <Chip a={filter==="booked"} o={()=>setFilter("booked")} c="#34D399">Booked</Chip>
-        <Chip a={filter==="unbooked"} o={()=>setFilter("unbooked")} c="#FB923C">Unbooked</Chip>
-        {organisers.map(o=>(<Chip key={o} a={filter===o} o={()=>setFilter(o)} c={gc(o).bg}>{o}</Chip>))}
-        <button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"5px 12px",borderRadius:20,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:showFilterMenu?BG:BG,display:"flex",alignItems:"center",gap:4}}><FilterIcon/> Sort & Search</button>
-      </div>
-      {showFilterMenu&&(
-        <div style={{padding:"8px 16px 14px",display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
-          <input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)}
-            style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:260,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)"}}/>
-          <div style={{display:"flex",gap:4}}>
-            <TimeBtn a={timeFilter==="all"} o={()=>setTimeFilter("all")}>All</TimeBtn>
-            <TimeBtn a={timeFilter==="morning"} o={()=>setTimeFilter("morning")} e="🌅">Morning</TimeBtn>
-            <TimeBtn a={timeFilter==="afternoon"} o={()=>setTimeFilter("afternoon")} e="☀️">Afternoon</TimeBtn>
-            <TimeBtn a={timeFilter==="evening"} o={()=>setTimeFilter("evening")} e="🌆">Evening</TimeBtn>
-            <TimeBtn a={timeFilter==="late"} o={()=>setTimeFilter("late")} e="🌙">Late</TimeBtn>
+      <div style={{position:"sticky",top:0,zIndex:50,background:BG}}>
+        {scrolled?(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
+            <span style={{fontSize:16,fontWeight:800,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Edinburgh Fringe</span>
+            <button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"flex",alignItems:"center",gap:6}}><FilterIcon/> Filter view {showFilterMenu?"▲":"▼"}</button>
           </div>
-        </div>
-      )}
+        ):(
+          <>
+            <div style={{position:"relative",textAlign:"center",padding:"28px 16px 20px",background:`linear-gradient(180deg, rgba(168,85,247,0.15) 0%, transparent 100%)`,borderBottom:`1px solid ${CARD_BORDER}`}}>
+              <div onClick={refreshData} title="Tap to refresh" style={{position:"absolute",top:10,right:12,fontSize:11,fontWeight:700,color:dataSource==="live"?"#34D399":TXT3,cursor:"pointer",display:"flex",alignItems:"center",gap:5,letterSpacing:"0.3px"}}>
+                <span style={{width:7,height:7,borderRadius:4,background:dataSource==="live"?"#34D399":"#FB923C",display:"inline-block"}}/>
+                {dataSource==="live"?"Live":"Saved"}{lastUpdated?` · ${lastUpdated.getDate()} ${MONTHS[lastUpdated.getMonth()]} ${pad2(lastUpdated.getHours())}:${pad2(lastUpdated.getMinutes())}`:""}
+              </div>
+              <div style={{fontSize:13,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:TXT2,marginBottom:8}}>Edinburgh</div>
+              <h1 style={{fontSize:40,fontWeight:900,letterSpacing:"-1px",margin:0,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>FRINGE 2026</h1>
+              <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap",alignItems:"center",marginTop:14}}>
+                <TabBtn active={view==="calendar"} onClick={()=>setView("calendar")}>Calendar</TabBtn>
+                <TabBtn active={view==="list"} onClick={()=>setView("list")}>View All</TabBtn>
+                <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Wishlist</TabBtn>
+                <TabBtn active={view==="recs"} onClick={()=>setView("recs")} accent>Picks</TabBtn>
+                <span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 10px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,maxWidth:130,textAlign:"center"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>
+                <button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>
+              </div>
+            </div>
+          </>
+        )}
+        {showFilterMenu&&(
+          <div style={{padding:"4px 8px 12px",background:BG}}>
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center",alignItems:"center",marginBottom:10}}>
+              <Chip a={filter==="all"} o={()=>setFilter("all")}>All</Chip>
+              <Chip a={filter==="booked"} o={()=>setFilter("booked")} c="#34D399">Booked</Chip>
+              <Chip a={filter==="unbooked"} o={()=>setFilter("unbooked")} c="#FB923C">Unbooked</Chip>
+              {organisers.map(o=>(<Chip key={o} a={filter===o} o={()=>setFilter(o)} c={gc(o).bg}>{o}</Chip>))}
+            </div>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
+              <input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:220,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)"}}/>
+              <div style={{display:"flex",gap:4}}>
+                <TimeBtn a={sortBy==="time"} o={()=>setSortBy("time")}>Sort: Time</TimeBtn>
+                <TimeBtn a={sortBy==="duration"} o={()=>setSortBy("duration")}>Sort: Length</TimeBtn>
+              </div>
+              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+                <TimeBtn a={timeFilter==="all"} o={()=>setTimeFilter("all")}>All</TimeBtn>
+                <TimeBtn a={timeFilter==="morning"} o={()=>setTimeFilter("morning")} e="🌅">Morning</TimeBtn>
+                <TimeBtn a={timeFilter==="afternoon"} o={()=>setTimeFilter("afternoon")} e="☀️">Afternoon</TimeBtn>
+                <TimeBtn a={timeFilter==="evening"} o={()=>setTimeFilter("evening")} e="🌆">Evening</TimeBtn>
+                <TimeBtn a={timeFilter==="late"} o={()=>setTimeFilter("late")} e="🌙">Late</TimeBtn>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* CALENDAR */}
       {view==="calendar"&&(
@@ -261,38 +296,36 @@ Use empty string "" for any field you cannot find.`}]})});
             <span style={{fontSize:17,fontWeight:700,color:TXT}}>{(()=>{const m=new Date(currentMonday+"T12:00:00");const s=addDays(m,6);return`${m.getDate()} ${MONTHS[m.getMonth()]} – ${s.getDate()} ${MONTHS[s.getMonth()]}`;})()}</span>
             <NavBtn disabled={weekIdx>=weeks.length-1} onClick={()=>setWeekIdx(Math.min(weeks.length-1,weekIdx+1))}>›</NavBtn>
           </div>
-          <div style={{overflowX:"auto",WebkitOverflowScrolling:"touch"}}>
-            <div style={{minWidth:600}}>
-              <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",borderBottom:`1px solid ${CARD_BORDER}`,position:"sticky",top:0,background:BG,zIndex:10}}>
-                <div/>
+          <div ref={gridRef} style={{overflow:"auto",maxHeight:560,WebkitOverflowScrolling:"touch",position:"relative"}}>
+            <div style={{minWidth:600,position:"relative"}}>
+              <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",borderBottom:`1px solid ${CARD_BORDER}`,position:"sticky",top:0,background:BG,zIndex:20}}>
+                <div style={{position:"sticky",left:0,zIndex:21,background:BG}}/>
                 {weekDates.map((ds,i)=>{const d=new Date(ds+"T12:00:00");const has=(showsByDate[ds]||[]).length>0;const isToday=ds===todayStr;return(
-                  <div key={ds} style={{textAlign:"center",padding:"6px 2px 8px",background:isToday?"rgba(168,85,247,0.15)":"transparent",borderRadius:isToday?"8px 8px 0 0":"0"}}>
+                  <div key={ds} style={{textAlign:"center",padding:"6px 2px 8px",background:isToday?"rgba(168,85,247,0.15)":BG,borderRadius:isToday?"8px 8px 0 0":"0"}}>
                     <div style={{fontSize:12,fontWeight:700,color:isToday?"#C084FC":TXT3,textTransform:"uppercase",letterSpacing:1}}>{DAY_NAMES_SHORT[i]}</div>
                     <div style={{fontSize:20,fontWeight:800,lineHeight:1.4,color:isToday?"#C084FC":has?TXT:TXT3}}>{d.getDate()}</div>
                   </div>);})}
               </div>
-              <div ref={gridRef} style={{overflowY:"auto",maxHeight:520,position:"relative"}}>
-                <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",position:"relative",height:totalSlots*SH}}>
-                  <div style={{position:"relative"}}>
-                    {Array.from({length:totalSlots},(_,i)=>{const mins=START_H*60+i*60;const dm=mins>=24*60?mins-24*60:mins;return <div key={i} style={{position:"absolute",top:i*SH-7,right:6,fontSize:11,fontWeight:600,color:TXT3,lineHeight:1}}>{formatHour(dm)}</div>;})}
-                  </div>
-                  {weekDates.map(ds=>{const dayShows=showsByDate[ds]||[];const isToday=ds===todayStr;const timeLineTop=(()=>{if(!isToday)return null;let m=nowMinutes;if(m<START_H*60)m+=24*60;if(m>=END_H*60)return null;return((m-START_H*60)/60)*SH;})();return(
-                    <div key={ds} style={{position:"relative",borderLeft:`1px solid rgba(255,255,255,0.05)`,height:totalSlots*SH,background:isToday?"rgba(168,85,247,0.06)":"transparent"}}>
-                      {Array.from({length:totalSlots},(_,i)=>(<div key={i} style={{position:"absolute",top:i*SH,left:0,right:0,height:1,background:"rgba(255,255,255,0.07)"}}/>))}
-                      {timeLineTop!==null&&<div style={{position:"absolute",top:timeLineTop,left:0,right:0,height:2,background:"#C084FC",zIndex:5,boxShadow:"0 0 8px rgba(192,132,252,0.6)"}}><div style={{position:"absolute",left:-3,top:-3,width:8,height:8,borderRadius:4,background:"#C084FC"}}/></div>}
-                      {dayShows.map((show,si)=>{const c=gc(show.organiser);const top=showTop(show);const height=showHeight(show);const sm=height<SH*1.5;return(
-                        <div key={si} onClick={()=>setSelectedShow(show)} style={{
-                          position:"absolute",top,left:2,right:2,height,background:c.bg,color:"#fff",
-                          borderRadius:8,padding:sm?"4px 6px":"6px 8px",cursor:"pointer",overflow:"hidden",zIndex:3,
-                          fontSize:sm?13:16,lineHeight:1.3,boxShadow:`0 2px 8px ${c.glow}`,
-                          border:!show.booked?"2px dashed rgba(255,255,255,0.4)":"none",opacity:show.booked?1:0.75,
-                        }}>
-                          <div style={{fontWeight:700,lineHeight:1.2}}>{show.name}</div>
-                          <div style={{opacity:0.75,marginTop:2,fontSize:sm?9:11}}>{show.venue.replace("Assembly ","").replace("Gilded Balloon ","GB ").replace("Underbelly ","UB ").replace("Pleasance ","")}</div>
-                          {!sm&&<div style={{opacity:0.85,marginTop:1,fontSize:11}}>{formatTime(show.start)}</div>}
-                        </div>);})}
-                    </div>);})}
+              <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",position:"relative",height:totalSlots*SH}}>
+                <div style={{position:"sticky",left:0,zIndex:10,background:BG}}>
+                  {Array.from({length:totalSlots},(_,i)=>{const mins=START_H*60+i*60;const dm=mins>=24*60?mins-24*60:mins;return <div key={i} style={{position:"absolute",top:i*SH-7,right:6,fontSize:12,fontWeight:600,color:TXT2,lineHeight:1}}>{formatHour(dm)}</div>;})}
                 </div>
+                {weekDates.map(ds=>{const dayShows=showsByDate[ds]||[];const isToday=ds===todayStr;const timeLineTop=(()=>{if(!isToday)return null;let m=nowMinutes;if(m<START_H*60)m+=24*60;if(m>=END_H*60)return null;return((m-START_H*60)/60)*SH;})();return(
+                  <div key={ds} style={{position:"relative",borderLeft:`1px solid rgba(255,255,255,0.05)`,height:totalSlots*SH,background:isToday?"rgba(168,85,247,0.06)":"transparent"}}>
+                    {Array.from({length:totalSlots},(_,i)=>(<div key={i} style={{position:"absolute",top:i*SH,left:0,right:0,height:1,background:"rgba(255,255,255,0.07)"}}/>))}
+                    {timeLineTop!==null&&<div style={{position:"absolute",top:timeLineTop,left:0,right:0,height:2,background:"#C084FC",zIndex:5,boxShadow:"0 0 8px rgba(192,132,252,0.6)"}}><div style={{position:"absolute",left:-3,top:-3,width:8,height:8,borderRadius:4,background:"#C084FC"}}/></div>}
+                    {dayShows.map((show,si)=>{const c=gc(show.organiser);const top=showTop(show);const height=showHeight(show);const sm=height<SH*1.5;return(
+                      <div key={si} onClick={()=>setSelectedShow(show)} style={{
+                        position:"absolute",top,left:2,right:2,height,background:c.bg,color:"#fff",
+                        borderRadius:8,padding:sm?"4px 6px":"6px 8px",cursor:"pointer",overflow:"hidden",zIndex:3,
+                        fontSize:sm?13:16,lineHeight:1.3,boxShadow:`0 2px 8px ${c.glow}`,
+                        border:!show.booked?"2px dashed rgba(255,255,255,0.4)":"none",opacity:show.booked?1:0.75,
+                      }}>
+                        <div style={{fontWeight:700,lineHeight:1.2}}>{show.name}</div>
+                        <div style={{opacity:0.75,marginTop:2,fontSize:sm?9:11}}>{show.venue.replace("Assembly ","").replace("Gilded Balloon ","GB ").replace("Underbelly ","UB ").replace("Pleasance ","")}</div>
+                        {!sm&&<div style={{opacity:0.85,marginTop:1,fontSize:11}}>{formatTime(show.start)}</div>}
+                      </div>);})}
+                  </div>);})}
               </div>
             </div>
           </div>
@@ -324,7 +357,7 @@ Use empty string "" for any field you cannot find.`}]})});
                     <div style={{flex:1,height:1,background:CARD_BORDER,marginLeft:4}}/>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {slotShows.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)}/>)}
+                    {slotShows.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)}/>)}
                   </div>
                 </div>);})}
             </div>);})}
@@ -334,9 +367,9 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* WISHLIST */}
       {view==="wishlist"&&(
         <div style={{padding:"16px 8px"}}>
-          <p style={{fontSize:14,color:TXT2,margin:"0 0 16px",textAlign:"center"}}>{filteredWishlist.length} shows still to book</p>
+          <p style={{fontSize:14,color:TXT2,margin:"0 0 16px",textAlign:"center"}}>{filteredWishlist.length} shows in wishlist</p>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {filteredWishlist.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)}/>)}
+            {filteredWishlist.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)} wishlist interest={interests[reviewKey(show)]} onInterest={v=>setInterest(show,v)}/>)}
           </div>
         </div>
       )}
@@ -422,14 +455,56 @@ Use empty string "" for any field you cannot find.`}]})});
                   ))}
                 </div>
               </div>}
-              <Dt l="Status"><span style={{color:selectedShow.booked?"#34D399":"#FB923C",fontWeight:700}}>{selectedShow.booked?"Booked ✓":"Not booked"}</span></Dt>
+              <Dt l="Status"><span style={{color:selectedShow.booked?"#34D399":"#FB923C",fontWeight:700}}>{selectedShow.booked?"Booked ✓":"Not booked"}</span>{selectedShow.ltf&&<span style={{marginLeft:8,fontSize:11,background:"rgba(255,186,8,0.15)",color:"#FFBA08",padding:"2px 7px",borderRadius:6,fontWeight:700}}>LoveTheFringe</span>}</Dt>
               {selectedShow.availability&&<Dt l="Availability"><span style={{color:selectedShow.availability==="Sold Out"?"#EF4444":selectedShow.availability==="Limited"?"#FB923C":selectedShow.availability==="Available"?"#34D399":TXT,fontWeight:700}}>{selectedShow.availability}</span></Dt>}
             </div>
-            {selectedShow.ltf&&<div style={{fontSize:13,background:"rgba(255,186,8,0.1)",color:"#FFBA08",padding:"8px 12px",borderRadius:10,marginBottom:12,fontWeight:600}}>LoveTheFringe discount applied</div>}
+            {selectedShow.booked&&(
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Your review</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {RATINGS.map(r=>{const sel=reviews[reviewKey(selectedShow)]===r.v;return(
+                    <button key={r.v} onClick={()=>setReview(selectedShow,r.v)} title={r.label} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 10px",borderRadius:10,cursor:"pointer",border:`1px solid ${sel?r.color:CARD_BORDER}`,background:sel?`${r.color}22`:"transparent",color:r.color,fontSize:12,fontWeight:700}}>
+                      <ThumbGroup opt={r} size={16}/>{sel?r.label:""}
+                    </button>
+                  );})}
+                </div>
+              </div>
+            )}
+            {!selectedShow.booked&&(
+              <div style={{marginBottom:16}}>
+                <div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Interest</div>
+                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                  {INTERESTS.map(it=>{const sel=interests[reviewKey(selectedShow)]===it.v;return(
+                    <button key={it.v} onClick={()=>setInterest(selectedShow,it.v)} title={it.label} style={{display:"flex",alignItems:"center",gap:5,padding:"7px 10px",borderRadius:10,cursor:"pointer",border:`1px solid ${sel?it.color:CARD_BORDER}`,background:sel?`${it.color}22`:"transparent",color:it.color,fontSize:12,fontWeight:700}}>
+                      <InterestIcon kind={it.icon} size={15}/>{it.label}
+                    </button>
+                  );})}
+                </div>
+              </div>
+            )}
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Tags</div>
+              <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
+                {(tagMap[reviewKey(selectedShow)]||[]).map((t,ti)=>(
+                  <span key={ti} style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(96,165,250,0.15)",color:"#93C5FD",padding:"4px 10px",borderRadius:8,fontSize:13,fontWeight:600}}>{t}<span onClick={()=>removeTag(selectedShow,t)} style={{cursor:"pointer",opacity:0.7}}>✕</span></span>
+                ))}
+                {modalTagAdding?(
+                  <input autoFocus value={modalTagInput} onChange={e=>setModalTagInput(e.target.value)} onBlur={()=>{if(modalTagInput.trim())addTag(selectedShow,modalTagInput.trim());setModalTagInput("");setModalTagAdding(false);}} onKeyDown={e=>{if(e.key==="Enter"){if(modalTagInput.trim())addTag(selectedShow,modalTagInput.trim());setModalTagInput("");setModalTagAdding(false);}else if(e.key==="Escape"){setModalTagInput("");setModalTagAdding(false);}}} placeholder="tag" style={{width:100,padding:"4px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none"}}/>
+                ):(
+                  <button onClick={()=>setModalTagAdding(true)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"4px 10px",borderRadius:8,border:`1px dashed ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Tag</button>
+                )}
+              </div>
+            </div>
             {selectedShow.notes&&<div style={{fontSize:14,color:TXT2,fontStyle:"italic",marginBottom:12}}>{selectedShow.notes}</div>}
             {selectedShow.address&&(()=>{const pc=extractPostcode(selectedShow.address);return(
               <div style={{fontSize:14,color:TXT2,marginBottom:18}}>📍 {pc?(<>{selectedShow.address.replace(pc,"").replace(/,\s*$/,"")}{", "}<a href={mapsUrl(selectedShow.address)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>):(<a href={mapsUrl(selectedShow.address)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA"}}>{selectedShow.address}</a>)}</div>);})()}
             {selectedShow.link&&<a href={selectedShow.link} target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"12px 16px",borderRadius:12,background:gc(selectedShow.organiser).bg,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>View on EdFest →</a>}
+            {selectedShow.date&&selectedShow.start&&(
+              <div style={{display:"flex",gap:8,marginTop:10}}>
+                <button onClick={()=>downloadShowICS(selectedShow)} style={{flex:1,padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7}}><AppleIcon/> Add to iCal</button>
+                <a href={gcalUrl(selectedShow)} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,textDecoration:"none",fontSize:14,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7}}><GoogleIcon/> Add to Calendar</a>
+              </div>
+            )}
           </div>
         </div>
       )}
@@ -445,12 +520,44 @@ Use empty string "" for any field you cannot find.`}]})});
   );
 }
 
-function ShowCard({show,onClick}){
+const RATINGS=[
+  {v:1,dir:"down",n:2,color:"#EC2D6F",label:"Hated it"},
+  {v:2,dir:"down",n:1,color:"#F77FA6",label:"Meh"},
+  {v:3,dir:"side",n:1,color:"#94A3B8",label:"OK"},
+  {v:4,dir:"up",n:1,color:"#6EE7A8",label:"Good"},
+  {v:5,dir:"up",n:2,color:"#10B981",label:"Loved it"},
+];
+const THUMB_PATH="M7.493 18.5c-.425 0-.82-.236-.975-.632A7.48 7.48 0 016 15.125c0-1.75.599-3.358 1.602-4.634.151-.192.373-.309.6-.397.473-.183.89-.514 1.212-.924a9.042 9.042 0 012.861-2.4c.723-.384 1.35-.956 1.653-1.715a4.498 4.498 0 00.322-1.672V3a.75.75 0 01.75-.75 2.25 2.25 0 012.25 2.25c0 1.152-.26 2.243-.723 3.218-.266.558.107 1.282.725 1.282h3.126c1.026 0 1.945.694 2.054 1.715.045.422.068.85.068 1.285a11.95 11.95 0 01-2.649 7.521c-.388.482-.987.729-1.605.729H14.23c-.483 0-.964-.078-1.423-.23l-3.114-1.04a4.501 4.501 0 00-1.423-.23h-.777zM2.331 10.727a11.969 11.969 0 00-.831 4.398 12 12 0 00.52 3.507c.26.85 1.084 1.368 1.973 1.368H4.9c.445 0 .72-.498.523-.898a8.963 8.963 0 01-.924-3.977c0-1.708.476-3.305 1.302-4.666.245-.403-.028-.959-.5-.959H4.25c-.832 0-1.612.453-1.918 1.227z";
+function Thumb({dir="up",size=18}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" style={{transform:dir==="down"?"rotate(180deg)":dir==="side"?"rotate(90deg)":"none",display:"block"}}><path d={THUMB_PATH}/></svg>;}
+function ThumbGroup({opt,size=16}){return <span style={{display:"inline-flex",alignItems:"center",gap:1,color:opt.color}}>{Array.from({length:opt.n}).map((_,k)=><Thumb key={k} dir={opt.dir} size={size}/>)}</span>;}
+function AppleIcon(){return <svg width="15" height="15" viewBox="0 0 384 512" fill="currentColor" style={{display:"block"}}><path d="M318.7 268.7c-.2-36.7 16.4-64.4 50-84.8-18.8-26.9-47.2-41.7-84.7-44.6-35.5-2.8-74.3 20.7-88.5 20.7-15 0-49.4-19.7-76.4-19.7C63.3 141.2 4 184.8 4 273.5q0 39.3 14.4 81.2c12.8 36.7 59 126.7 107.2 125.2 25.2-.6 43-17.9 75.8-17.9 31.8 0 48.3 17.9 76.4 17.9 48.6-.7 90.4-82.5 102.6-119.3-65.2-30.7-61.7-90-61.7-91.9zM262.1 104.5c27.3-32.4 24.8-61.9 24-72.5-24.1 1.4-52 16.4-67.9 34.9-17.5 19.8-27.8 44.3-25.6 71.9 26.1 2 49.9-11.4 69.5-34.3z"/></svg>;}
+function GoogleIcon(){return <svg width="15" height="15" viewBox="0 0 48 48" style={{display:"block"}}><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>;}
+function timeBucketColor(start){const m=timeToMinutes(start);if(m===null)return null;if(m<720)return"#F59E0B";if(m<1020)return"#38BDF8";if(m<1320)return"#A855F7";return"#6366F1";}
+const INTERESTS=[
+  {v:"high",label:"Really interested",color:"#FFBA08",icon:"star"},
+  {v:"maybe",label:"Don't mind",color:"#94A3B8",icon:"dash"},
+  {v:"no",label:"Not interested",color:"#EF4444",icon:"x"},
+];
+function InterestIcon({kind,size=16}){
+  const svg={
+    star:<path d="M3.612 15.443c-.386.198-.824-.149-.746-.592l.83-4.73L.173 6.765c-.329-.314-.158-.888.283-.95l4.898-.696L7.538.792c.197-.39.73-.39.927 0l2.184 4.327 4.898.696c.441.062.612.636.282.95l-3.522 3.356.83 4.73c.078.443-.36.79-.746.592L8 13.187l-4.389 2.256z"/>,
+    dash:<rect x="3" y="7" width="10" height="2" rx="1"/>,
+    x:<path d="M4.646 4.646a.5.5 0 01.708 0L8 7.293l2.646-2.647a.5.5 0 01.708.708L8.707 8l2.647 2.646a.5.5 0 01-.708.708L8 8.707l-2.646 2.647a.5.5 0 01-.708-.708L7.293 8 4.646 5.354a.5.5 0 010-.708z"/>,
+  };
+  return <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" style={{display:"block"}}>{svg[kind]}</svg>;
+}
+function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,onAddTag,onRemoveTag}){
   const c=gc2(show.organiser);const pc=extractPostcode(show.address);
+  const [reviewOpen,setReviewOpen]=useState(false);
+  const chosen=RATINGS.find(r=>r.v===review);
+  const [interestOpen,setInterestOpen]=useState(false);
+  const chosenInterest=INTERESTS.find(x=>x.v===interest);
+  const [tagAdding,setTagAdding]=useState(false);
+  const [tagInput,setTagInput]=useState("");
   return(
     <div onClick={onClick} style={{display:"flex",alignItems:"stretch",cursor:"pointer",borderRadius:14,overflow:"hidden",background:CARD,border:`1px solid ${CARD_BORDER}`,marginLeft:8,marginRight:8,backdropFilter:"blur(8px)",transition:"transform 0.15s"}}>
       <div style={{width:4,background:c.bg,flexShrink:0}}/>
-      <div style={{flex:1,padding:"12px 14px",minWidth:0}}>
+      <div style={{flex:1,padding:"10px 14px",minWidth:0}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:8}}>
           <div style={{minWidth:0}}>
             <div style={{fontSize:16,fontWeight:700,color:TXT,lineHeight:1.3}}>
@@ -463,8 +570,8 @@ function ShowCard({show,onClick}){
             </div>
           </div>
           <div style={{textAlign:"right",flexShrink:0}}>
-            <div style={{fontSize:15,fontWeight:700,color:c.bg}}>{formatTime(show.start)}</div>
-            <div style={{fontSize:12,color:TXT3}}>{show.duration}</div>
+            <div style={{fontSize:18,fontWeight:800,color:wishlist?(timeBucketColor(show.start)||TXT):TXT}}>{formatTime(show.start)}</div>
+            <div style={{fontSize:12,color:TXT2}}>{show.duration}</div>
           </div>
         </div>
         {show.attendees&&(
