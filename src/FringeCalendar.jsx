@@ -159,6 +159,8 @@ export default function FringeCalendar(){
   const[proposals,setProposals]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-proposals")||"[]");}catch{return[];}});
   const saveProposals=next=>{try{localStorage.setItem("fringe-proposals",JSON.stringify(next));}catch{}setProposals(next);};
   const shared=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]p=([^&]+)/);return m?decodeProposal(decodeURIComponent(m[1])):null;},[]);
+  useEffect(()=>{if(shared)return;const slug={list:"all",recs:"picks"}[view]||view;try{window.history.replaceState(null,"","#"+slug);}catch{}},[view,shared]);
+  useEffect(()=>{const on=()=>{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return;const map={all:"list",picks:"recs"};const v=map[h]||h;if(["calendar","list","wishlist","recs","proposal"].includes(v))setView(v);};window.addEventListener("hashchange",on);return()=>window.removeEventListener("hashchange",on);},[]);
   const dayShowsFor=prop=>{const added=prop.shows||[];const key=s=>`${s.name}|${s.start}`.toLowerCase();const seen=new Set(added.map(key));const booked=allShows.filter(s=>s.booked&&s.date===prop.date&&!seen.has(key(s)));return[...added,...booked];};
   const newProposal=()=>saveProposals([...proposals,{id:"p"+Date.now(),title:"Proposed day",date:"",shows:[]}]);
   const updateProposal=(id,patch)=>saveProposals(proposals.map(p=>p.id===id?{...p,...patch}:p));
@@ -166,7 +168,7 @@ export default function FringeCalendar(){
   const addToProposal=(id,show)=>saveProposals(proposals.map(p=>{if(p.id!==id)return p;const snap={name:show.name,venue:show.venue,start:show.start,end:show.end,price:show.price,address:show.address,organiser:show.organiser,booked:show.booked?1:0,link:show.link};if((p.shows||[]).some(x=>x.name===snap.name&&x.start===snap.start))return p;return{...p,shows:[...(p.shows||[]),snap]};}));
   const removeFromProposal=(id,idx)=>saveProposals(proposals.map(p=>p.id===id?{...p,shows:(p.shows||[]).filter((_,i)=>i!==idx)}:p));
   const shareProposal=prop=>{const token=encodeProposal({title:prop.title,date:prop.date,shows:dayShowsFor(prop)});const url=`${window.location.origin}${window.location.pathname}#p=${encodeURIComponent(token)}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Read-only link copied to clipboard:\n\n"+url);};
-  const[view,setView]=useState("calendar");
+  const[view,setView]=useState(()=>{try{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return "calendar";const map={all:"list",picks:"recs"};const v=map[h]||h;return["calendar","list","wishlist","recs","proposal"].includes(v)?v:"calendar";}catch{return "calendar";}});
   const[selectedShow,setSelectedShow]=useState(null);
   const[filter,setFilter]=useState("all");
   const[weekIdx,setWeekIdx]=useState(0);
@@ -304,6 +306,7 @@ Use empty string "" for any field you cannot find.`}]})});
                 <TimeBtn a={timeFilter==="evening"} o={()=>setTimeFilter("evening")} e="🌆">Evening</TimeBtn>
                 <TimeBtn a={timeFilter==="late"} o={()=>setTimeFilter("late")} e="🌙">Late</TimeBtn>
               </div>
+              <button onClick={()=>{try{navigator.clipboard.writeText(window.location.href);}catch{}window.alert("Link to this view copied — paste to share it.");}} style={{padding:"6px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(96,165,250,0.15)",color:"#93C5FD",fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>🔗 Copy link</button>
             </div>
           </div>
         )}
@@ -597,31 +600,40 @@ function fmtMin(m){if(m==null)return "\u2014";m=((m%1440)+1440)%1440;const h=Mat
 function proposalStats(shows){const st=[],en=[];let cost=0;(shows||[]).forEach(s=>{cost+=poundsOf(s.price);const a=timeToMinutes(s.start);if(a!=null){st.push(a);let e=timeToMinutes(s.end);if(e==null)e=a;if(e<a)e+=1440;en.push(e);}});return{startMin:st.length?Math.min(...st):null,endMin:en.length?Math.max(...en):null,cost};}
 function encodeProposal(o){try{return btoa(encodeURIComponent(JSON.stringify(o)));}catch(e){return "";}}
 function decodeProposal(t){try{return JSON.parse(decodeURIComponent(atob(t)));}catch(e){return null;}}
+function normDayMin(t){let m=timeToMinutes(t);if(m==null)return null;if(m<360)m+=1440;return m;}
 function ProposalDay({date,shows}){
-  const day=[...(shows||[])].filter(s=>s.start).sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0));
+  const items=(shows||[]).filter(s=>s.start).map(s=>{const sm=normDayMin(s.start);let em=normDayMin(s.end);if(em==null||em<=sm)em=sm+60;return {...s,_s:sm,_e:em};}).sort((a,b)=>a._s-b._s);
   const st=proposalStats(shows);
   const dl=date?(()=>{const d=new Date(date+"T12:00:00");return `${DAYS_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():"Pick a day";
+  const summary=(<div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.05)",fontWeight:600,lineHeight:1.5}}><span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span></div>);
+  if(items.length===0)return <div>{summary}<div style={{fontSize:13,color:TXT3,textAlign:"center",padding:"14px"}}>No shows with times yet.</div></div>;
+  const minS=Math.min(...items.map(i=>i._s)),maxE=Math.max(...items.map(i=>i._e));
+  const startH=Math.floor(minS/60),endH=Math.ceil(maxE/60),HOUR=54,rangeTop=startH*60,gh=(endH-startH)*HOUR;
+  const lanes=[];items.forEach(it=>{let placed=false;for(let li=0;li<lanes.length;li++){if(lanes[li][lanes[li].length-1]._e<=it._s){lanes[li].push(it);it._lane=li;placed=true;break;}}if(!placed){it._lane=lanes.length;lanes.push([it]);}});
+  const nLanes=Math.max(1,lanes.length);
+  items.forEach(it=>{it._ov=items.some(o=>o!==it&&o._s<it._e&&it._s<o._e);});
+  const warns=[];for(let k=1;k<items.length;k++){const a=items[k-1],b=items[k];const gap=b._s-a._e;const need=requiredGapMin(a,b);const w=walkMinutes(a,b);if(gap<need)warns.push({a,b,gap,need,w});}
   return (<div>
-    <div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.05)",fontWeight:600,lineHeight:1.5}}>
-      <span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span>
+    {summary}
+    <div style={{display:"flex",background:"rgba(255,255,255,0.02)",borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflow:"hidden"}}>
+      <div style={{width:46,flexShrink:0,position:"relative",height:gh}}>
+        {Array.from({length:endH-startH+1},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR-6,right:6,fontSize:11,color:TXT2,fontWeight:600}}>{formatHour(((startH+i)%24)*60)}</div>))}
+      </div>
+      <div style={{flex:1,position:"relative",height:gh,borderLeft:`1px solid ${CARD_BORDER}`}}>
+        {Array.from({length:endH-startH},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR,left:0,right:0,height:1,background:"rgba(255,255,255,0.06)"}}/>))}
+        {items.map((it,k)=>{const top=(it._s-rangeTop)/60*HOUR;const bh=Math.max(22,(it._e-it._s)/60*HOUR-2);const w=100/nLanes;const col=gc2(it.organiser).bg;const proposed=!it.booked;return(
+          <div key={k} title={it.name+" — "+formatTime(it.start)} style={{position:"absolute",top,height:bh,left:`calc(${it._lane*w}% + 3px)`,width:`calc(${w}% - 6px)`,background:col,opacity:proposed?1:0.4,borderRadius:8,padding:"3px 6px",overflow:"hidden",color:"#fff",boxSizing:"border-box",boxShadow:it._ov?"0 0 0 2px #EF4444":"none",border:proposed?"none":"1px dashed rgba(255,255,255,0.6)"}}>
+            <div style={{fontSize:12,fontWeight:700,lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.name}</div>
+            <div style={{fontSize:10,opacity:0.9}}>{formatTime(it.start)}{it.price?" · ":""}{it.price?<b>{it.price}</b>:""}{proposed?"":" · booked"}</div>
+          </div>);})}
+      </div>
     </div>
-    {day.length===0&&<div style={{fontSize:13,color:TXT3,textAlign:"center",padding:"14px"}}>No shows with times yet.</div>}
-    {day.map((s,i)=>{const prev=day[i-1];let g=null;if(prev){const pe=timeToMinutes(prev.end)!=null?timeToMinutes(prev.end):timeToMinutes(prev.start);let gap=timeToMinutes(s.start)-pe;if(gap<-720)gap+=1440;const need=requiredGapMin(prev,s);const w=walkMinutes(prev,s);g={gap,need,w,ok:gap>=need};}
-      const col=gc2(s.organiser).bg;
-      return (<div key={i}>
-        {g&&<div style={{display:"flex",alignItems:"center",gap:6,margin:"7px 2px",fontSize:12,fontWeight:700,color:g.ok?"#34D399":"#EF4444"}}>{g.ok?"✓":"⚠"} {g.gap} min gap{g.w!=null?` · ${g.w} min walk`:" · walk unknown"} · needs {g.need} min{g.ok?"":" — too tight"}</div>}
-        <div style={{display:"flex",alignItems:"stretch",background:CARD,border:`1px solid ${CARD_BORDER}`,borderRadius:12,overflow:"hidden"}}>
-          <div style={{width:4,background:col,flexShrink:0}}/>
-          <div style={{flex:1,padding:"9px 12px",minWidth:0}}>
-            <div style={{fontSize:15,fontWeight:700,color:TXT,lineHeight:1.3}}>{s.name}{!s.booked&&<span style={{marginLeft:6,fontSize:10,background:"rgba(168,85,247,0.2)",color:"#C084FC",padding:"2px 6px",borderRadius:4,fontWeight:700}}>proposed</span>}</div>
-            <div style={{fontSize:12,color:TXT2,marginTop:2}}>{s.venue}</div>
-          </div>
-          <div style={{textAlign:"right",padding:"9px 12px",flexShrink:0}}>
-            <div style={{fontSize:15,fontWeight:800,color:TXT}}>{formatTime(s.start)}</div>
-            <div style={{fontSize:12,color:TXT3}}>{s.price||""}</div>
-          </div>
-        </div>
-      </div>);})}
+    <div style={{display:"flex",gap:14,marginTop:8,fontSize:11,color:TXT3,flexWrap:"wrap",alignItems:"center"}}>
+      <span style={{display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:3,background:"#A855F7",display:"inline-block"}}/>proposed</span>
+      <span style={{display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:3,background:"#A855F7",opacity:0.4,display:"inline-block"}}/>already booked</span>
+      <span style={{color:"#EF4444"}}>red outline = overlap</span>
+    </div>
+    {warns.length>0&&<div style={{marginTop:10,display:"flex",flexDirection:"column",gap:5}}>{warns.map((w,k)=>(<div key={k} style={{fontSize:12,color:"#F59E0B",fontWeight:600}}>⚠ {w.a.name} → {w.b.name}: {w.gap} min gap{w.w!=null?` (${w.w} min walk)`:""}, needs {w.need}</div>))}</div>}
   </div>);
 }
 const INTERESTS=[
