@@ -1,8 +1,11 @@
 import { useState, useMemo, useRef, useEffect, useCallback, Component } from "react";
+var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/=",n="ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+-$",e={};function t(r,o){if(!e[r]){e[r]={};for(var n=0;n<r.length;n++)e[r][r.charAt(n)]=n}return e[r][o]}var i={compressToBase64:function(r){if(null==r)return"";var n=i._compress(r,6,function(r){return o.charAt(r)});switch(n.length%4){default:case 0:return n;case 1:return n+"===";case 2:return n+"==";case 3:return n+"="}},decompressFromBase64:function(r){return null==r?"":""==r?null:i._decompress(r.length,32,function(n){return t(o,r.charAt(n))})},compressToUTF16:function(o){return null==o?"":i._compress(o,15,function(o){return r(o+32)})+" "},decompressFromUTF16:function(r){return null==r?"":""==r?null:i._decompress(r.length,16384,function(o){return r.charCodeAt(o)-32})},compressToUint8Array:function(r){for(var o=i.compress(r),n=new Uint8Array(2*o.length),e=0,t=o.length;e<t;e++){var s=o.charCodeAt(e);n[2*e]=s>>>8,n[2*e+1]=s%256}return n},decompressFromUint8Array:function(o){if(null==o)return i.decompress(o);for(var n=new Array(o.length/2),e=0,t=n.length;e<t;e++)n[e]=256*o[2*e]+o[2*e+1];var s=[];return n.forEach(function(o){s.push(r(o))}),i.decompress(s.join(""))},compressToEncodedURIComponent:function(r){return null==r?"":i._compress(r,6,function(r){return n.charAt(r)})},decompressFromEncodedURIComponent:function(r){return null==r?"":""==r?null:(r=r.replace(/ /g,"+"),i._decompress(r.length,32,function(o){return t(n,r.charAt(o))}))},compress:function(o){return i._compress(o,16,function(o){return r(o)})},_compress:function(r,o,n){if(null==r)return"";var e,t,i,s={},u={},a="",p="",c="",l=2,f=3,h=2,d=[],m=0,v=0;for(i=0;i<r.length;i+=1)if(a=r.charAt(i),Object.prototype.hasOwnProperty.call(s,a)||(s[a]=f++,u[a]=!0),p=c+a,Object.prototype.hasOwnProperty.call(s,p))c=p;else{if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++),s[p]=f++,c=String(a)}if(""!==c){if(Object.prototype.hasOwnProperty.call(u,c)){if(c.charCodeAt(0)<256){for(e=0;e<h;e++)m<<=1,v==o-1?(v=0,d.push(n(m)),m=0):v++;for(t=c.charCodeAt(0),e=0;e<8;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}else{for(t=1,e=0;e<h;e++)m=m<<1|t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t=0;for(t=c.charCodeAt(0),e=0;e<16;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1}0==--l&&(l=Math.pow(2,h),h++),delete u[c]}else for(t=s[c],e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;0==--l&&(l=Math.pow(2,h),h++)}for(t=2,e=0;e<h;e++)m=m<<1|1&t,v==o-1?(v=0,d.push(n(m)),m=0):v++,t>>=1;for(;;){if(m<<=1,v==o-1){d.push(n(m));break}v++}return d.join("")},decompress:function(r){return null==r?"":""==r?null:i._decompress(r.length,32768,function(o){return r.charCodeAt(o)})},_decompress:function(o,n,e){var t,i,s,u,a,p,c,l=[],f=4,h=4,d=3,m="",v=[],g={val:e(0),position:n,index:1};for(t=0;t<3;t+=1)l[t]=t;for(s=0,a=Math.pow(2,2),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;c=r(s);break;case 2:return""}for(l[3]=c,i=c,v.push(c);;){if(g.index>o)return"";for(s=0,a=Math.pow(2,d),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;switch(c=s){case 0:for(s=0,a=Math.pow(2,8),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 1:for(s=0,a=Math.pow(2,16),p=1;p!=a;)u=g.val&g.position,g.position>>=1,0==g.position&&(g.position=n,g.val=e(g.index++)),s|=(u>0?1:0)*p,p<<=1;l[h++]=r(s),c=h-1,f--;break;case 2:return v.join("")}if(0==f&&(f=Math.pow(2,d),d++),l[c])m=l[c];else{if(c!==h)return null;m=i+i.charAt(0)}v.push(m),l[h++]=i+m.charAt(0),i=m,0==--f&&(f=Math.pow(2,d),d++)}}};return i}();
+
 import Papa from "papaparse";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdAFEpJDVvI1L_f5GgtZjscx7IyDlbDma2nwlFqZt-UdbeoXNwDOOijfZtV6jmeDmKkpD6BDD3fZ1y/pub?output=csv";
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyl_SMJixwzsiH49kwZ8nf4vnrmA57bGFhVmb01gV75ASGqW1UgZE3yHUdE2EWBaT4e/exec";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz6HNRYWBhQ2GoTV_30wGZ-xpHPbYdSqswePtgracYR8rQ_PATiCX5J1-u2rxb8jErf/exec";
+const JOPICKS_CSV_URL = ""; // paste the published-CSV URL of the sheet's "JoPicks" tab to switch on the static #jolive link
 
 const FALLBACK_SHOWS = [
   { booked:1, name:"Olga Koch: Fat Tom Cruise", link:"https://edfest.com/whats-on/olga-koch-fat-tom-cruise", price:"£19", organiser:"Pleasance", venue:"Pleasance Courtyard", start:"17:30", end:"18:30", duration:"1h", ltf:true, date:"2026-08-05", attendees:"Me", tickets:1, address:"Pleasance Courtyard, 60 Pleasance, EH8 9TJ", notes:"" },
@@ -63,9 +66,11 @@ const OC = {
   "Pleasance":      { bg: "#FFBA08", glow: "rgba(255,186,8,0.3)" },
   "Gilded Balloon": { bg: "#FF6FB7", glow: "rgba(255,111,183,0.3)" },
   "Underbelly":     { bg: "#A855F7", glow: "rgba(168,85,247,0.3)" },
-  "The Stand":      { bg: "#94A3B8", glow: "rgba(148,163,184,0.3)" },
-  "Just The Tonic": { bg: "#F59E0B", glow: "rgba(245,158,11,0.3)" },
-  "Monkey Barrel":  { bg: "#FB923C", glow: "rgba(251,146,60,0.3)" },
+  "The Stand":      { bg: "#3B82F6", glow: "rgba(59,130,246,0.3)" },
+  "Just The Tonic": { bg: "#F97316", glow: "rgba(249,115,22,0.3)" },
+  "Monkey Barrel":  { bg: "#22C55E", glow: "rgba(34,197,94,0.3)" },
+  "PBH's Free Fringe": { bg: "#14B8A6", glow: "rgba(20,184,166,0.3)" },
+  "Other":          { bg: "#64748B", glow: "rgba(100,116,139,0.3)" },
 };
 const BG = "#0B0B1A";
 const CARD = "rgba(255,255,255,0.06)";
@@ -94,8 +99,8 @@ function parseCSVToShows(csv){
   const iName=col("name of show"),iLink=col("link"),iPrice=col("price"),
         iOrg=col("organiser"),iVenue=col("where showing"),iStart=col("time start"),
         iEnd=col("time end"),iLtf=col("lovethefringe"),iBooked=col("booked"),
-        iDate=col("date"),iAtt=col("additional tickets"),iTix=col("total tix"),
-        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability");
+        iDate=col("date"),iWho=col("who booked?"),iTix=col("total tix"),
+        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability"),iVenueCode=col("venue #"),iGenre=col("genre");
   const g=(row,i)=>i>=0&&row[i]!=null?String(row[i]).trim():"";
   const shows=[],wishlist=[];
   for(let k=1;k<rows.length;k++){
@@ -107,8 +112,8 @@ function parseCSVToShows(csv){
       venue:g(row,iVenue),start:parseTime(g(row,iStart)),end:parseTime(g(row,iEnd)),
       duration:parseDuration(g(row,iStart),g(row,iEnd)),
       ltf:g(row,iLtf).toLowerCase()==="yes",booked:g(row,iBooked).toLowerCase()==="yes"?1:0,
-      date,attendees:g(row,iAtt),tickets:parseInt(g(row,iTix))||0,
-      notes:g(row,iNotes),address:g(row,iAddr),availability:g(row,iAvail)};
+      date,attendees:g(row,iWho),tickets:parseInt(g(row,iTix))||0,venueCode:g(row,iVenueCode),
+      notes:g(row,iNotes),address:g(row,iAddr),fullAddress:(g(row,20)||g(row,iAddr)),availability:g(row,iAvail),genres:g(row,iGenre)};
     if(date)shows.push(show);else wishlist.push(show);
   }
   return{shows,wishlist};
@@ -126,7 +131,7 @@ function pad2(n){return String(n).padStart(2,"0");}
 function fIcsStamp(dateISO,hm){const[y,mo,da]=dateISO.split("-");const[h,mi]=(hm||"00:00").split(":");return `${y}${mo}${da}T${pad2(h)}${pad2(mi)}00`;}
 function fAddDayISO(dateISO){const d=new Date(dateISO+"T12:00:00");d.setDate(d.getDate()+1);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
 function fEndInfo(s){let endDate=s.date,end=s.end||s.start||"00:00";if(s.end&&s.start&&timeToMinutes(s.end)<=timeToMinutes(s.start))endDate=fAddDayISO(s.date);return{endDate,end};}
-function icsForShow(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const esc=t=>String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");const uid=(String(s.name)+s.date+start).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"@fringe-app";const desc=[s.price?("Price: "+s.price):"",s.attendees?("With: "+s.attendees):"",s.notes||""].filter(Boolean).join("\n");const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//fringe-app//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+uid,"DTSTAMP:"+fIcsStamp(s.date,start),"DTSTART:"+fIcsStamp(s.date,start),"DTEND:"+fIcsStamp(endDate,end),"SUMMARY:"+esc(s.name+(s.venue?(" | "+s.venue):"")),s.address?("LOCATION:"+esc(s.address)):"",s.link?("URL:"+esc(s.link)):"","DESCRIPTION:"+esc(desc),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Reminder","TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"].filter(Boolean);return lines.join("\r\n");}
+function icsForShow(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const esc=t=>String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");const uid=(String(s.name)+s.date+start).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"@fringe-app";const desc=[s.price?("Price: "+s.price):"",s.notes||""].filter(Boolean).join("\n");const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//fringe-app//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+uid,"DTSTAMP:"+fIcsStamp(s.date,start),"DTSTART:"+fIcsStamp(s.date,start),"DTEND:"+fIcsStamp(endDate,end),"SUMMARY:"+esc(s.name+(s.venue?(" | "+s.venue):"")),s.address?("LOCATION:"+esc(s.address)):"",s.link?("URL:"+esc(s.link)):"","DESCRIPTION:"+esc(desc),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Reminder","TRIGGER:-PT1H","END:VALARM","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Reminder","TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"].filter(Boolean);return lines.join("\r\n");}
 function downloadShowICS(s){const blob=new Blob([icsForShow(s)],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(String(s.name)||"show").replace(/[^a-z0-9]+/gi,"-").toLowerCase().replace(/^-|-$/g,"")+".ics";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}
 function gcalUrl(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const q=new URLSearchParams({action:"TEMPLATE",text:s.name+(s.venue?(" | "+s.venue):""),dates:fIcsStamp(s.date,start)+"/"+fIcsStamp(endDate,end),location:s.address||s.venue||"",details:s.link||"",ctz:"Europe/London"});return "https://calendar.google.com/calendar/render?"+q.toString();}
 function matchesSearch(show,q){if(!q)return true;const l=q.toLowerCase();return[show.name,show.venue,show.start,show.end,show.attendees,show.organiser,show.address,show.price].filter(Boolean).some(f=>f.toLowerCase().includes(l));}
@@ -145,6 +150,10 @@ function FringeCalendarInner(){
   const[dataSource,setDataSource]=useState("saved");
   const[lastUpdated,setLastUpdated]=useState(null);
   const[scrolled,setScrolled]=useState(false);
+  const[dragY,setDragY]=useState(0);
+  const modalRef=useRef(null);
+  const dragStart=useRef(null);
+  const[addOpenId,setAddOpenId]=useState(null);
   const[reviews,setReviews]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-reviews")||"{}");}catch{return{};}});
   const reviewKey=s=>`${s.name}|${s.date||""}|${s.start||""}`.toLowerCase();
   const setReview=(s,v)=>setReviews(prev=>{const next={...prev,[reviewKey(s)]:v};try{localStorage.setItem("fringe-reviews",JSON.stringify(next));}catch{}return next;});
@@ -159,46 +168,79 @@ function FringeCalendarInner(){
   const[proposals,setProposals]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-proposals")||"[]");}catch{return[];}});
   const saveProposals=next=>{try{localStorage.setItem("fringe-proposals",JSON.stringify(next));}catch{}setProposals(next);};
   const shared=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]p=([^&]+)/);return m?decodeProposal(decodeURIComponent(m[1])):null;},[]);
-  useEffect(()=>{const on=()=>{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return;const map={all:"list",picks:"recs"};const v=map[h]||h;if(["calendar","list","wishlist","recs","proposal"].includes(v))setView(v);};window.addEventListener("hashchange",on);return()=>window.removeEventListener("hashchange",on);},[]);
+  const sharedJo=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]j=([^&]+)/);return m?decodeJoPicks(decodeURIComponent(m[1])):null;},[]);
+  useEffect(()=>{const on=()=>{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return;const map={all:"list",picks:"recs",fun:"funfacts",jo:"jospicks"};const v=map[h]||h;if(["calendar","list","wishlist","recs","proposal","funfacts","jospicks"].includes(v))setView(v);};window.addEventListener("hashchange",on);return()=>window.removeEventListener("hashchange",on);},[]);
   const dayShowsFor=prop=>{const added=prop.shows||[];const key=s=>`${s.name}|${s.start}`.toLowerCase();const seen=new Set(added.map(key));const booked=allShows.filter(s=>s.booked&&s.date===prop.date&&!seen.has(key(s)));return[...added,...booked];};
   const newProposal=()=>saveProposals([...proposals,{id:"p"+Date.now(),title:"Proposed day",date:"",shows:[]}]);
   const updateProposal=(id,patch)=>saveProposals(proposals.map(p=>p.id===id?{...p,...patch}:p));
   const deleteProposal=id=>saveProposals(proposals.filter(p=>p.id!==id));
-  const addToProposal=(id,show)=>saveProposals(proposals.map(p=>{if(p.id!==id)return p;const snap={name:show.name,venue:show.venue,start:show.start,end:show.end,price:show.price,address:show.address,organiser:show.organiser,booked:show.booked?1:0,link:show.link};if((p.shows||[]).some(x=>x.name===snap.name&&x.start===snap.start))return p;return{...p,shows:[...(p.shows||[]),snap]};}));
+  const addToProposal=(id,show)=>saveProposals(proposals.map(p=>{if(p.id!==id)return p;const snap={name:show.name,venue:show.venue,start:show.start,end:show.end,price:show.price,address:show.address,organiser:show.organiser,booked:show.booked?1:0,link:show.link,genres:show.genres||""};if((p.shows||[]).some(x=>x.name===snap.name&&x.start===snap.start))return p;return{...p,shows:[...(p.shows||[]),snap]};}));
   const removeFromProposal=(id,idx)=>saveProposals(proposals.map(p=>p.id===id?{...p,shows:(p.shows||[]).filter((_,i)=>i!==idx)}:p));
-  const shareProposal=prop=>{const token=encodeProposal({title:prop.title,date:prop.date,shows:dayShowsFor(prop)});const url=`${window.location.origin}${window.location.pathname}#p=${encodeURIComponent(token)}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Read-only link copied to clipboard:\n\n"+url);};
-  const[view,setView]=useState(()=>{try{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return "calendar";const map={all:"list",picks:"recs"};const v=map[h]||h;return["calendar","list","wishlist","recs","proposal"].includes(v)?v:"calendar";}catch{return "calendar";}});
-  useEffect(()=>{if(shared)return;const slug={list:"all",recs:"picks"}[view]||view;try{window.history.replaceState(null,"","#"+slug);}catch{}},[view,shared]);
+  const shareProposal=prop=>{const token=encodeProposal({title:prop.title,date:prop.date,shows:dayShowsFor(prop)});const url=`${window.location.origin}${window.location.pathname}#p=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Read-only link copied to clipboard:\n\n"+url);};
+  const[view,setView]=useState(()=>{try{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return "calendar";const map={all:"list",picks:"recs",fun:"funfacts",jo:"jospicks"};const v=map[h]||h;return["calendar","list","wishlist","recs","proposal","funfacts","jospicks"].includes(v)?v:"calendar";}catch{return "calendar";}});
+  useEffect(()=>{if(shared)return;const slug={list:"all",recs:"picks",funfacts:"fun",jospicks:"jo"}[view]||view;try{window.history.replaceState(null,"","#"+slug);}catch{}},[view,shared]);
   const[selectedShow,setSelectedShow]=useState(null);
-  const[filter,setFilter]=useState("all");
+  const[statusFilter,setStatusFilter]=useState([]);
+  const[orgFilter,setOrgFilter]=useState([]);
+  const[genreFilter,setGenreFilter]=useState([]);
+  const[openDrop,setOpenDrop]=useState(null);
+  const[wishlistSort,setWishlistSort]=useState("name");
   const[weekIdx,setWeekIdx]=useState(0);
+  const[customRange,setCustomRange]=useState(null);
+  const[datePickerOpen,setDatePickerOpen]=useState(false);
+  const[pickStart,setPickStart]=useState("");
+  const[pickEnd,setPickEnd]=useState("");
   const[showFilterMenu,setShowFilterMenu]=useState(false);
+  const[showFeedback,setShowFeedback]=useState(false);
+  const[feedbackText,setFeedbackText]=useState("");
+  const[feedbackSent,setFeedbackSent]=useState(false);
+  const[landscape,setLandscape]=useState(false);
+  const[isMobile,setIsMobile]=useState(false);
+  const[joLive,setJoLive]=useState("loading");
   const[sortBy,setSortBy]=useState("time");
-  const[timeFilter,setTimeFilter]=useState("all");
+  const[timeFilters,setTimeFilters]=useState([]);
+  const[peopleFilter,setPeopleFilter]=useState([]);
   const[searchQuery,setSearchQuery]=useState("");
   const[showAddModal,setShowAddModal]=useState(false);
   const[addUrl,setAddUrl]=useState("");
   const[addLoading,setAddLoading]=useState(false);
   const[addError,setAddError]=useState("");
   const gridRef=useRef(null);
-  useEffect(()=>{const on=()=>setScrolled(window.scrollY>60);on();window.addEventListener("scroll",on,{passive:true});return()=>window.removeEventListener("scroll",on);},[]);
+  useEffect(()=>{const on=()=>setScrolled(window.scrollY>10);on();window.addEventListener("scroll",on,{passive:true});return()=>window.removeEventListener("scroll",on);},[]);
 
   useEffect(()=>{(async()=>{try{const r=await window.storage.get("fringe-recommendations");if(r&&r.value)setRecommendations(JSON.parse(r.value));}catch{}})();},[]);
   const saveRecs=useCallback(async(recs)=>{setRecommendations(recs);try{await window.storage.set("fringe-recommendations",JSON.stringify(recs));}catch{}},[]);
   useEffect(()=>{(async()=>{try{const res=await fetch(SHEET_URL);if(!res.ok)return;const text=await res.text();const{shows,wishlist:wl}=parseCSVToShows(text);if(shows.length>0){setAllShows(shows);setWishlist(wl);setDataSource("live");setLastUpdated(new Date());}}catch{}})();},[]);
 
-  const filteredShows=useMemo(()=>{let s=allShows.filter(s=>s.date);if(filter==="booked")s=s.filter(s=>s.booked===1);else if(filter==="unbooked")s=s.filter(s=>s.booked===0);else if(filter!=="all")s=s.filter(s=>s.organiser===filter);if(searchQuery.trim())s=s.filter(s=>matchesSearch(s,searchQuery));if(timeFilter!=="all"){s=s.filter(sh=>{const m=timeToMinutes(sh.start);if(m===null)return false;if(timeFilter==="morning")return m<720;if(timeFilter==="afternoon")return m>=720&&m<1020;if(timeFilter==="evening")return m>=1020&&m<1320;if(timeFilter==="late")return m>=1320||m<120;return true;});}return s;},[filter,allShows,searchQuery,timeFilter]);
+  const bucketOf=m=>{if(m==null)return null;if(m<120)return "late";if(m<720)return "morning";if(m<1020)return "afternoon";if(m<1320)return "evening";return "late";};
+  const inTime=s=>{if(!timeFilters.length)return true;const b=bucketOf(timeToMinutes(s.start));return b!=null&&timeFilters.includes(b);};
+  const inPeople=s=>{if(!peopleFilter.length)return true;const att=(s.attendees||"").split(",").map(x=>x.trim());return peopleFilter.some(pp=>att.includes(pp));};
+  const inStatus=s=>!statusFilter.length||(statusFilter.includes("booked")&&s.booked===1)||(statusFilter.includes("unbooked")&&s.booked===0);
+  const inOrg=s=>!orgFilter.length||orgFilter.includes(s.organiser);
+  const inGenre=s=>!genreFilter.length||genresOf(s).some(g=>genreFilter.includes(g));
+  const toggleGenre=v=>setGenreFilter(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v]);
+  const availableGenres=useMemo(()=>{const set=new Set();[...allShows,...wishlist,...recommendations].forEach(s=>genresOf(s).forEach(g=>set.add(g)));return[...set].sort();},[allShows,wishlist,recommendations]);
+  const toggleStatus=v=>setStatusFilter(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v]);
+  const toggleOrg=v=>setOrgFilter(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v]);
+  const people=useMemo(()=>{const set=new Set();[...allShows,...wishlist].forEach(s=>{(s.attendees||"").split(",").forEach(pp=>{const t=pp.trim();if(t)set.add(t);});});return[...set].sort();},[allShows,wishlist]);
+  const toggleTime=b=>setTimeFilters(prev=>prev.includes(b)?prev.filter(x=>x!==b):[...prev,b]);
+  const togglePerson=nm=>setPeopleFilter(prev=>prev.includes(nm)?prev.filter(x=>x!==nm):[...prev,nm]);
+  const filteredShows=useMemo(()=>allShows.filter(s=>s.date).filter(s=>{if(!inStatus(s))return false;if(!inOrg(s))return false;if(!inTime(s))return false;if(!inPeople(s))return false;if(!inGenre(s))return false;if(searchQuery.trim()&&!matchesSearch(s,searchQuery))return false;return true;}),[allShows,statusFilter,orgFilter,timeFilters,peopleFilter,genreFilter,searchQuery]);
   const weeks=useMemo(()=>getWeeks(filteredShows),[filteredShows]);
   useEffect(()=>{if(weekIdx>=weeks.length)setWeekIdx(Math.max(0,weeks.length-1));},[weeks,weekIdx]);
   const currentMonday=weeks[weekIdx]||"2026-08-03";
-  const weekDates=useMemo(()=>{const m=new Date(currentMonday+"T12:00:00");return Array.from({length:7},(_,i)=>dateToStr(addDays(m,i)));},[currentMonday]);
+  const weekDates=useMemo(()=>{if(customRange&&customRange.start){const s=new Date(customRange.start+"T12:00:00");let e=customRange.end?new Date(customRange.end+"T12:00:00"):s;if(e<s)e=s;let n=Math.round((e-s)/86400000)+1;n=Math.max(1,Math.min(10,n));return Array.from({length:n},(_,i)=>dateToStr(addDays(s,i)));}const m=new Date(currentMonday+"T12:00:00");return Array.from({length:7},(_,i)=>dateToStr(addDays(m,i)));},[customRange,currentMonday]);
+  const navPrev=()=>{if(customRange){const n=weekDates.length;setCustomRange({start:dateToStr(addDays(new Date(customRange.start+"T12:00:00"),-n)),end:dateToStr(addDays(new Date(customRange.end+"T12:00:00"),-n))});}else setWeekIdx(Math.max(0,weekIdx-1));};
+  const navNext=()=>{if(customRange){const n=weekDates.length;setCustomRange({start:dateToStr(addDays(new Date(customRange.start+"T12:00:00"),n)),end:dateToStr(addDays(new Date(customRange.end+"T12:00:00"),n))});}else setWeekIdx(Math.min(weeks.length-1,weekIdx+1));};
+  const applyRange=()=>{if(!pickStart){setDatePickerOpen(false);return;}let s=new Date(pickStart+"T12:00:00");let e=pickEnd?new Date(pickEnd+"T12:00:00"):s;if(e<s){const t=s;s=e;e=t;}const n=Math.round((e-s)/86400000)+1;if(n>10){window.alert("Please choose a range of 10 days or fewer.");return;}setCustomRange({start:dateToStr(s),end:dateToStr(e)});setDatePickerOpen(false);};
+  const resetRange=()=>{setCustomRange(null);setDatePickerOpen(false);};
   const showsByDate=useMemo(()=>{const map={};filteredShows.forEach(s=>{if(!map[s.date])map[s.date]=[];map[s.date].push(s);});Object.values(map).forEach(arr=>{if(sortBy==="duration")arr.sort((a,b)=>durationMinutes(a)-durationMinutes(b));else arr.sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0));});return map;},[filteredShows,sortBy]);
 
-  const SH=80;const START_H=10;const END_H=26;const totalSlots=(END_H-START_H);
+  const SH=110;const START_H=10;const END_H=26;const totalSlots=(END_H-START_H);
   function showTop(s){let m=timeToMinutes(s.start);if(m===null)return 0;if(m<START_H*60)m+=24*60;return((m-START_H*60)/60)*SH;}
   function showHeight(s){let st=timeToMinutes(s.start);let en=timeToMinutes(s.end);if(st===null||en===null)return SH;if(en<=st)en+=24*60;if(st<START_H*60)st+=24*60;return Math.max(((en-st)/60)*SH,SH*0.4);}
 
-  useEffect(()=>{if(view==="calendar"&&gridRef.current){const first=weekDates.reduce((min,date)=>{(showsByDate[date]||[]).forEach(s=>{let m=timeToMinutes(s.start);if(m!==null){if(m<START_H*60)m+=24*60;if(m<min)min=m;}});return min;},Infinity);if(first<Infinity)gridRef.current.scrollTop=Math.max(0,((first-START_H*60)/60)*SH-20);}},[view,weekIdx,currentMonday,showsByDate]);
+  useEffect(()=>{if(view==="calendar"&&gridRef.current){const first=weekDates.reduce((min,date)=>{(showsByDate[date]||[]).forEach(s=>{let m=timeToMinutes(s.start);if(m!==null){if(m<START_H*60)m+=24*60;if(m<min)min=m;}});return min;},Infinity);if(first<Infinity)gridRef.current.scrollTop=Math.max(0,((first-START_H*60)/60)*SH-20);}},[view,weekIdx,currentMonday,showsByDate,customRange]);
 
   const [now, setNow] = useState(new Date());
   useEffect(() => { const t = setInterval(() => setNow(new Date()), 60000); return () => clearInterval(t); }, []);
@@ -209,10 +251,26 @@ function FringeCalendarInner(){
   const bookedCount=allShows.filter(s=>s.booked===1).length;
   const bookedDays=useMemo(()=>new Set(allShows.filter(s=>s.booked===1&&s.date).map(s=>s.date)).size,[allShows]);
   const organisers=useMemo(()=>[...new Set(allShows.map(s=>s.organiser).filter(Boolean))],[allShows]);
+  const organiserChips=useMemo(()=>{const set=new Set(Object.keys(OC));organisers.forEach(o=>set.add(o));return[...set].sort((a,b)=>a.localeCompare(b));},[organisers]);
   const dates=useMemo(()=>[...new Set(filteredShows.map(s=>s.date))].sort(),[filteredShows]);
+  const bookingEnd_=s=>{if(!s.date)return null;const sm=timeToMinutes(s.start);let em=timeToMinutes(s.end);if(em==null)em=sm;if(em==null)return null;const d=new Date(s.date+"T00:00:00");if(sm!=null&&em<sm)d.setDate(d.getDate()+1);d.setHours(Math.floor(em/60),em%60,0,0);return d;};
+  const bookingsByDate=useMemo(()=>{const map={};filteredShows.forEach(s=>{const e=bookingEnd_(s);if(e&&e<now)return;if(!map[s.date])map[s.date]=[];map[s.date].push(s);});Object.values(map).forEach(arr=>arr.sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0)));return map;},[filteredShows,now]);
+  const bookingsDates=useMemo(()=>Object.keys(bookingsByDate).sort(),[bookingsByDate]);
   const refreshData=async()=>{try{const res=await fetch(SHEET_URL);if(!res.ok)return;const text=await res.text();const{shows,wishlist:wl}=parseCSVToShows(text);if(shows.length>0){setAllShows(shows);setWishlist(wl);setDataSource("live");setLastUpdated(new Date());}}catch{}};
-  const filteredWishlist=useMemo(()=>{const base=searchQuery.trim()?wishlist.filter(s=>matchesSearch(s,searchQuery)):wishlist;const tm=x=>{const m=timeToMinutes(x.start);return m===null?1e9:m;};return[...base].sort((a,b)=>tm(a)-tm(b));},[wishlist,searchQuery]);
-  const filteredRecs=useMemo(()=>{let r=recommendations;if(filter!=="all"&&filter!=="booked"&&filter!=="unbooked")r=r.filter(x=>x.organiser===filter);if(searchQuery.trim())r=r.filter(x=>matchesSearch(x,searchQuery));return r;},[recommendations,filter,searchQuery]);
+  const filteredWishlist=useMemo(()=>{const base=wishlist.filter(s=>{if(!inStatus(s))return false;if(!inOrg(s))return false;if(!inTime(s))return false;if(!inPeople(s))return false;if(!inGenre(s))return false;if(searchQuery.trim()&&!matchesSearch(s,searchQuery))return false;return true;});const cmp=(a,b)=>{if(wishlistSort==="venue"){const va=(a.venueCode||"").toString().trim(),vb=(b.venueCode||"").toString().trim();if(!va&&!vb)return 0;if(!va)return 1;if(!vb)return -1;const na=parseInt(va)||0,nb=parseInt(vb)||0;if(na!==nb)return na-nb;return va.localeCompare(vb);}if(wishlistSort==="location"){const la=(a.fullAddress||a.address||a.venue||"").trim(),lb=(b.fullAddress||b.address||b.venue||"").trim();if(!la&&!lb)return 0;if(!la)return 1;if(!lb)return -1;return la.localeCompare(lb);}if(wishlistSort==="duration")return durationMinutes(a)-durationMinutes(b);return String(a.name||"").localeCompare(String(b.name||""));};return[...base].sort(cmp);},[wishlist,statusFilter,orgFilter,timeFilters,peopleFilter,genreFilter,searchQuery,wishlistSort]);
+  const filteredRecs=useMemo(()=>{let r=recommendations;r=r.filter(inOrg).filter(inTime).filter(inPeople).filter(inGenre);if(searchQuery.trim())r=r.filter(x=>matchesSearch(x,searchQuery));return r;},[recommendations,orgFilter,searchQuery,timeFilters,peopleFilter,genreFilter]);
+  const funFacts=useMemo(()=>{const booked=allShows.filter(s=>s.booked===1);const now=new Date();const mode=arr=>{const m={};let best=null,bc=0;arr.forEach(x=>{if(!x)return;m[x]=(m[x]||0)+1;if(m[x]>bc){bc=m[x];best=x;}});return{value:best,count:bc};};const days=new Set(booked.map(s=>s.date).filter(Boolean));const attended=booked.filter(s=>{if(!s.date)return false;return new Date(s.date+"T23:59:59")<=now;});const org=mode(booked.map(s=>s.organiser));const dayCount={};booked.forEach(s=>{if(s.date)dayCount[s.date]=(dayCount[s.date]||0)+1;});let topDay=null,topDayN=0;Object.keys(dayCount).forEach(d=>{if(dayCount[d]>topDayN){topDayN=dayCount[d];topDay=d;}});const attNames=[];booked.forEach(s=>(s.attendees||"").split(",").forEach(pp=>{const t=pp.trim();if(t&&t.toLowerCase()!=="me")attNames.push(t);}));const topMate=(()=>{const m={};let bc=0;attNames.forEach(x=>{m[x]=(m[x]||0)+1;if(m[x]>bc)bc=m[x];});const vals=Object.keys(m).filter(k=>m[k]===bc);return{values:bc?vals.sort():[],count:bc};})();const favs=booked.filter(s=>reviews[reviewKey(s)]===5);const hated=booked.filter(s=>reviews[reviewKey(s)]===1);const buckets={morning:0,afternoon:0,evening:0,late:0};booked.forEach(s=>{const m=timeToMinutes(s.start);if(m==null)return;const b=m<120?"late":m<720?"morning":m<1020?"afternoon":m<1320?"evening":"late";buckets[b]++;});let topBucket=null,tbN=0;Object.keys(buckets).forEach(b=>{if(buckets[b]>tbN){tbN=buckets[b];topBucket=b;}});const mostExp=booked.filter(s=>s.price&&poundsOf(s.price)>0).reduce((a,s)=>(!a||poundsOf(s.price)>poundsOf(a.price))?s:a,null);const cheapest=booked.filter(s=>s.price).reduce((a,s)=>(!a||poundsOf(s.price)<poundsOf(a.price))?s:a,null);const STOP=new Set("the a an and of to at in on for with from live show tour presents my your me is it de la".split(" "));const words={};booked.forEach(s=>String(s.name||"").toLowerCase().replace(/[^a-z0-9\s]/g," ").split(/\s+/).forEach(w=>{if(w.length>2&&!STOP.has(w))words[w]=(words[w]||0)+1;}));let topWord=null,twN=0;Object.keys(words).forEach(w=>{if(words[w]>twN){twN=words[w];topWord=w;}});const byDate={};booked.forEach(s=>{if(s.date)(byDate[s.date]=byDate[s.date]||[]).push(s);});let tightest=null;Object.keys(byDate).forEach(d=>{const arr=byDate[d].slice().sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0));for(let i=0;i<arr.length-1;i++){const pe=timeToMinutes(arr[i].end);const ns=timeToMinutes(arr[i+1].start);if(pe==null||ns==null)continue;const gap=ns-pe;if(gap>=0&&(tightest==null||gap<tightest))tightest=gap;}});const venueCount={},venueInfo={};booked.forEach(s=>{const k=(s.venueCode||s.venue||"").toString();if(!k)return;venueCount[k]=(venueCount[k]||0)+1;if(!venueInfo[k])venueInfo[k]={code:s.venueCode||"",name:s.venue||""};});let tvKey=null,tvN=0;Object.keys(venueCount).forEach(k=>{if(venueCount[k]>tvN){tvN=venueCount[k];tvKey=k;}});const topVenue=tvKey?{code:venueInfo[tvKey].code,name:venueInfo[tvKey].name,count:tvN}:null;const adj=m=>m==null?null:(m<300?m+1440:m);let earliest=null,latest=null;booked.forEach(s=>{const a=adj(timeToMinutes(s.start));if(a==null)return;if(earliest==null||a<adj(timeToMinutes(earliest.start)))earliest=s;if(latest==null||a>adj(timeToMinutes(latest.start)))latest=s;});let longest=null;booked.forEach(s=>{const dd=durationMinutes(s);if(dd>0&&(longest==null||dd>durationMinutes(longest)))longest=s;});const totalMin=booked.reduce((a,s)=>a+durationMinutes(s),0);return{booked:booked.length,days:days.size,attended:attended.length,org,topDay,topDayN,topMate,favs,hated,topBucket,mostExp,cheapest,topWord,tightest,topVenue,earliest,latest,longest,totalMin};},[allShows,reviews]);
+  const[joLanes,setJoLanes]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-jopicks")||"{}");}catch{return{};}});
+  const setJoLane=(k,lane)=>setJoLanes(prev=>{const next={...prev,[k]:lane};try{localStorage.setItem("fringe-jopicks",JSON.stringify(next));}catch{}return next;});
+  const[joDragKey,setJoDragKey]=useState(null);
+  const joItems=useMemo(()=>{const seen=new Set();const out=[];[...allShows,...wishlist].forEach(s=>{const k=reviewKey(s);if(seen.has(k))return;seen.add(k);out.push(s);});return out;},[allShows,wishlist]);
+  const joByLane=useMemo(()=>{const map={all:[],newbies:[],pros:[],wild:[],new:[]};joItems.forEach(s=>{const lane=joLanes[reviewKey(s)]||"all";(map[lane]||map.all).push(s);});Object.keys(map).forEach(k=>map[k].sort(joSort));return map;},[joItems,joLanes]);
+  const joLiveRoute=typeof window!=="undefined"&&/[#&]jolive/.test(window.location.hash);
+  const saveJoToSheet=()=>{const picks=[];Object.keys(joByLane).forEach(lane=>{if(lane==="all")return;joByLane[lane].forEach(s=>picks.push({lane,name:s.name,venue:s.venue,start:s.start,end:s.end,price:s.price,link:s.link||"",date:s.date||""}));});if(APPS_SCRIPT_URL){try{fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"jopicks",picks})});}catch{}}window.alert(JOPICKS_CSV_URL?("Saved! Your live, always-current link is:\n\n"+window.location.origin+window.location.pathname+"#jolive"):"Saved to the JoPicks tab of your sheet. To turn on the shareable live link, publish that tab as a CSV and add its URL (see the build notes).");};
+  const submitFeedback=()=>{const t=feedbackText.trim();if(!t)return;if(APPS_SCRIPT_URL){try{fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"feedback",text:t})});}catch{}}setFeedbackSent(true);setFeedbackText("");};
+  useEffect(()=>{if(typeof window==="undefined")return;const upd=()=>{try{setLandscape(window.matchMedia?window.matchMedia("(orientation: landscape)").matches:window.innerWidth>window.innerHeight);}catch{setLandscape(window.innerWidth>window.innerHeight);}setIsMobile(window.innerWidth<=640);};upd();window.addEventListener("resize",upd);window.addEventListener("orientationchange",upd);return()=>{window.removeEventListener("resize",upd);window.removeEventListener("orientationchange",upd);};},[]);
+  useEffect(()=>{if(!joLiveRoute)return;if(!JOPICKS_CSV_URL){setJoLive(null);return;}(async()=>{try{const res=await fetch(JOPICKS_CSV_URL);if(!res.ok){setJoLive(null);return;}const text=await res.text();setJoLive(parseJoCsv(text));}catch{setJoLive(null);}})();},[]);
+  const shareJoPicks=()=>{const token=encodeJoPicks(joByLane);const url=`${window.location.origin}${window.location.pathname}#j=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Read-only link to your Jo's picks copied:\n\n"+url);};
 
   const handleAddShow=async()=>{
     if(!addUrl.trim())return;const url=addUrl.trim();
@@ -246,12 +304,60 @@ Use empty string "" for any field you cannot find.`}]})});
 
   if(shared){return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:640,margin:"0 auto",color:TXT,padding:"0 4px 40px",background:BG,minHeight:"100vh"}}>
-      <div style={{textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
+      <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
         <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>{shared.title||"Proposed day"}</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared plan · read-only</div>
       </div>
       <div style={{padding:"0 12px"}}><ErrorBoundary><ProposalDay date={shared.date} shows={shared.shows||[]}/></ErrorBoundary></div>
+      <div style={{textAlign:"center",marginTop:26,padding:"0 12px"}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
+      </div>
+    </div>
+  );}
+  if(sharedJo){return(
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:760,margin:"0 auto",color:TXT,padding:"0 8px 50px",background:BG,minHeight:"100vh"}}>
+      <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
+        <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
+        <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Jo's picks</h1>
+        <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared list · read-only</div>
+      </div>
+      {JO_LANES.filter(l=>l.id!=="all"&&(sharedJo[l.id]||[]).length>0).map(l=>(
+        <div key={l.id} style={{marginBottom:20}}>
+          <div style={{fontSize:15,fontWeight:800,color:TXT,padding:"0 6px 8px"}}>{l.name} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({(sharedJo[l.id]||[]).length})</span></div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {(sharedJo[l.id]||[]).slice().sort(joSort).map((s,i)=>(<JoCard key={i} show={s} readOnly/>))}
+          </div>
+        </div>
+      ))}
+      <div style={{textAlign:"center",marginTop:24}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
+      </div>
+    </div>
+  );}
+  if(joLiveRoute){return(
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:760,margin:"0 auto",color:TXT,padding:"0 8px 50px",background:BG,minHeight:"100vh"}}>
+      <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
+        <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
+        <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Jo's picks</h1>
+        <div style={{fontSize:12,color:TXT3,marginTop:4}}>Live · read-only</div>
+      </div>
+      {joLive==="loading"&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>Loading Jo's latest picks…</div>}
+      {joLive===null&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 16px",lineHeight:1.5}}>This live link isn't switched on yet.</div>}
+      {joLive&&typeof joLive==="object"&&JO_LANES.filter(l=>l.id!=="all"&&(joLive[l.id]||[]).length>0).map(l=>(
+        <div key={l.id} style={{marginBottom:20}}>
+          <div style={{fontSize:15,fontWeight:800,color:TXT,padding:"0 6px 8px"}}>{l.name} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({(joLive[l.id]||[]).length})</span></div>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {(joLive[l.id]||[]).slice().sort(joSort).map((s,i)=>(<JoCard key={i} show={s} readOnly/>))}
+          </div>
+        </div>
+      ))}
+      <div style={{textAlign:"center",marginTop:24}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
+      </div>
     </div>
   );}
   return(
@@ -267,6 +373,7 @@ Use empty string "" for any field you cannot find.`}]})});
         ):(
           <>
             <div style={{position:"relative",textAlign:"center",padding:"28px 16px 20px",background:`linear-gradient(180deg, rgba(168,85,247,0.15) 0%, transparent 100%)`,borderBottom:`1px solid ${CARD_BORDER}`}}>
+              <div onClick={()=>{try{navigator.clipboard.writeText(window.location.href);}catch{}window.alert("Link to this view copied — paste to share it.");}} title="Copy a link to this view" style={{position:"absolute",top:10,left:12,fontSize:11,fontWeight:700,color:"#93C5FD",cursor:"pointer",display:"flex",alignItems:"center",gap:4,letterSpacing:"0.3px"}}>🔗 Copy link</div>
               <div onClick={refreshData} title="Tap to refresh" style={{position:"absolute",top:10,right:12,fontSize:11,fontWeight:700,color:dataSource==="live"?"#34D399":TXT3,cursor:"pointer",display:"flex",alignItems:"center",gap:5,letterSpacing:"0.3px"}}>
                 <span style={{width:7,height:7,borderRadius:4,background:dataSource==="live"?"#34D399":"#FB923C",display:"inline-block"}}/>
                 {dataSource==="live"?"Live":"Saved"}{lastUpdated?` · ${lastUpdated.getDate()} ${MONTHS[lastUpdated.getMonth()]} ${pad2(lastUpdated.getHours())}:${pad2(lastUpdated.getMinutes())}`:""}
@@ -274,12 +381,26 @@ Use empty string "" for any field you cannot find.`}]})});
               <div style={{fontSize:13,fontWeight:700,letterSpacing:3,textTransform:"uppercase",color:TXT2,marginBottom:8}}>Edinburgh</div>
               <h1 style={{fontSize:40,fontWeight:900,letterSpacing:"-1px",margin:0,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>FRINGE 2026</h1>
               <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap",alignItems:"center",marginTop:14}}>
-                <TabBtn active={view==="calendar"} onClick={()=>setView("calendar")}>Calendar</TabBtn>
-                <TabBtn active={view==="list"} onClick={()=>setView("list")}>View All</TabBtn>
-                <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Wishlist</TabBtn>
-                <TabBtn active={view==="recs"} onClick={()=>setView("recs")} accent>Picks</TabBtn>
-                <TabBtn active={view==="proposal"} onClick={()=>setView("proposal")}>Proposal</TabBtn>
-                <span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 10px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,maxWidth:130,textAlign:"center"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>
+                {isMobile?(
+                  <select value={view} onChange={e=>setView(e.target.value)} style={{padding:"9px 16px",borderRadius:20,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.12)",color:TXT,fontSize:14,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
+                    <option value="calendar">Calendar</option>
+                    <option value="list">Bookings</option>
+                    <option value="wishlist">Current Wishlist</option>
+                    <option value="recs">Suggestions</option>
+                    <option value="jospicks">Jo's Picks</option>
+                    <option value="proposal">Proposal</option>
+                    <option value="funfacts">Fun Facts</option>
+                  </select>
+                ):(<>
+                  <TabBtn active={view==="calendar"} onClick={()=>setView("calendar")}>Calendar</TabBtn>
+                  <TabBtn active={view==="list"} onClick={()=>setView("list")}>Bookings</TabBtn>
+                  <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Current Wishlist</TabBtn>
+                  <TabBtn active={view==="recs"} onClick={()=>setView("recs")}>Suggestions</TabBtn>
+                  <TabBtn active={view==="jospicks"} onClick={()=>setView("jospicks")}>Jo's Picks</TabBtn>
+                  <TabBtn active={view==="proposal"} onClick={()=>setView("proposal")}>Proposal</TabBtn>
+                  <TabBtn active={view==="funfacts"} onClick={()=>setView("funfacts")}>Fun Facts</TabBtn>
+                </>)}
+                {!isMobile&&<span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 12px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,whiteSpace:"nowrap"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>}
                 <button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>
               </div>
             </div>
@@ -287,26 +408,15 @@ Use empty string "" for any field you cannot find.`}]})});
         )}
         {showFilterMenu&&(
           <div style={{padding:"4px 8px 12px",background:BG}}>
-            <div style={{display:"flex",gap:5,flexWrap:"wrap",justifyContent:"center",alignItems:"center",marginBottom:10}}>
-              <Chip a={filter==="all"} o={()=>setFilter("all")}>All</Chip>
-              <Chip a={filter==="booked"} o={()=>setFilter("booked")} c="#34D399">Booked</Chip>
-              <Chip a={filter==="unbooked"} o={()=>setFilter("unbooked")} c="#FB923C">Unbooked</Chip>
-              {organisers.map(o=>(<Chip key={o} a={filter===o} o={()=>setFilter(o)} c={gc(o).bg}>{o}</Chip>))}
-            </div>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
               <input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:220,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)"}}/>
-              <div style={{display:"flex",gap:4}}>
-                <TimeBtn a={sortBy==="time"} o={()=>setSortBy("time")}>Sort: Time</TimeBtn>
-                <TimeBtn a={sortBy==="duration"} o={()=>setSortBy("duration")}>Sort: Length</TimeBtn>
-              </div>
-              <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                <TimeBtn a={timeFilter==="all"} o={()=>setTimeFilter("all")}>All</TimeBtn>
-                <TimeBtn a={timeFilter==="morning"} o={()=>setTimeFilter("morning")} e="🌅">Morning</TimeBtn>
-                <TimeBtn a={timeFilter==="afternoon"} o={()=>setTimeFilter("afternoon")} e="☀️">Afternoon</TimeBtn>
-                <TimeBtn a={timeFilter==="evening"} o={()=>setTimeFilter("evening")} e="🌆">Evening</TimeBtn>
-                <TimeBtn a={timeFilter==="late"} o={()=>setTimeFilter("late")} e="🌙">Late</TimeBtn>
-              </div>
-              <button onClick={()=>{try{navigator.clipboard.writeText(window.location.href);}catch{}window.alert("Link to this view copied — paste to share it.");}} style={{padding:"6px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(96,165,250,0.15)",color:"#93C5FD",fontSize:12,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>🔗 Copy link</button>
+              <MultiDrop open={openDrop==="status"} onToggle={()=>setOpenDrop(openDrop==="status"?null:"status")} label="Status" selected={statusFilter} onSelect={toggleStatus} onClear={()=>setStatusFilter([])} options={[{value:"booked",label:"Booked",dot:"#34D399"},{value:"unbooked",label:"Unbooked",dot:"#FB923C"}]}/>
+              <MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>
+              <MultiDrop open={openDrop==="genre"} onToggle={()=>setOpenDrop(openDrop==="genre"?null:"genre")} label="Genre" selected={genreFilter} onSelect={toggleGenre} onClear={()=>setGenreFilter([])} options={availableGenres.map(gn=>({value:gn,label:gn}))}/>
+              {people.length>0&&(view!=="wishlist"||wishlist.some(s=>(s.attendees||"").trim()))&&(
+                <MultiDrop open={openDrop==="people"} onToggle={()=>setOpenDrop(openDrop==="people"?null:"people")} label="People" icon="👥" selected={peopleFilter} onSelect={togglePerson} onClear={()=>setPeopleFilter([])} options={people.map(nm=>({value:nm,label:nm}))}/>
+              )}
+              <MultiDrop open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>
             </div>
           </div>
         )}
@@ -315,39 +425,54 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* CALENDAR */}
       {view==="calendar"&&(
         <div style={{padding:"8px 0"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 8px 12px"}}>
-            <NavBtn disabled={weekIdx===0} onClick={()=>setWeekIdx(Math.max(0,weekIdx-1))}>‹</NavBtn>
-            <span style={{fontSize:17,fontWeight:700,color:TXT}}>{(()=>{const m=new Date(currentMonday+"T12:00:00");const s=addDays(m,6);return`${m.getDate()} ${MONTHS[m.getMonth()]} – ${s.getDate()} ${MONTHS[s.getMonth()]}`;})()}</span>
-            <NavBtn disabled={weekIdx>=weeks.length-1} onClick={()=>setWeekIdx(Math.min(weeks.length-1,weekIdx+1))}>›</NavBtn>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 8px 12px",position:"relative"}}>
+            <NavBtn disabled={!customRange&&weekIdx===0} onClick={navPrev}>‹</NavBtn>
+            <button onClick={()=>{setPickStart(weekDates[0]);setPickEnd(weekDates[weekDates.length-1]);setDatePickerOpen(o=>!o);}} title="Tap to choose your own dates" style={{fontSize:17,fontWeight:700,color:TXT,background:"none",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,padding:"4px 8px",borderRadius:10}}>{(()=>{const a=new Date(weekDates[0]+"T12:00:00");const b=new Date(weekDates[weekDates.length-1]+"T12:00:00");return weekDates.length===1?`${a.getDate()} ${MONTHS[a.getMonth()]}`:`${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;})()} <span style={{fontSize:11,color:TXT2}}>▾</span></button>
+            <NavBtn disabled={!customRange&&weekIdx>=weeks.length-1} onClick={navNext}>›</NavBtn>
+            {datePickerOpen&&(
+              <div style={{position:"absolute",top:"100%",left:"50%",transform:"translateX(-50%)",zIndex:60,background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:14,padding:14,boxShadow:"0 12px 40px rgba(0,0,0,0.6)",minWidth:250}}>
+                <div style={{fontSize:12,color:TXT2,marginBottom:10,fontWeight:600,textAlign:"center"}}>Pick your dates (1–10 days)</div>
+                <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"center",flexWrap:"wrap"}}>
+                  <input type="date" value={pickStart} onChange={e=>setPickStart(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                  <span style={{color:TXT2,fontSize:13}}>to</span>
+                  <input type="date" value={pickEnd} onChange={e=>setPickEnd(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                </div>
+                <div style={{display:"flex",gap:8,marginTop:12,justifyContent:"center"}}>
+                  <button onClick={resetRange} style={{padding:"8px 14px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>Back to weeks</button>
+                  <button onClick={applyRange} style={{padding:"8px 16px",borderRadius:10,border:"none",background:ACCENT,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>Apply</button>
+                </div>
+              </div>
+            )}
           </div>
-          <div ref={gridRef} style={{overflow:"auto",maxHeight:"calc(100vh - 150px)",WebkitOverflowScrolling:"touch",position:"relative"}}>
-            <div style={{minWidth:600,position:"relative"}}>
-              <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",borderBottom:`1px solid ${CARD_BORDER}`,position:"sticky",top:0,background:BG,zIndex:20}}>
+          <div ref={gridRef} style={{overflow:"auto",maxHeight:"calc(100vh - 120px)",WebkitOverflowScrolling:"touch",position:"relative"}}>
+            <div style={{minWidth:Math.max(320,48+weekDates.length*78),position:"relative"}}>
+              <div style={{display:"grid",gridTemplateColumns:`48px repeat(${weekDates.length}, 1fr)`,borderBottom:`1px solid ${CARD_BORDER}`,position:"sticky",top:0,background:BG,zIndex:20}}>
                 <div style={{position:"sticky",left:0,zIndex:21,background:BG}}/>
                 {weekDates.map((ds,i)=>{const d=new Date(ds+"T12:00:00");const has=(showsByDate[ds]||[]).length>0;const isToday=ds===todayStr;return(
                   <div key={ds} style={{textAlign:"center",padding:"6px 2px 8px",background:isToday?"rgba(168,85,247,0.15)":BG,borderRadius:isToday?"8px 8px 0 0":"0"}}>
-                    <div style={{fontSize:12,fontWeight:700,color:isToday?"#C084FC":TXT3,textTransform:"uppercase",letterSpacing:1}}>{DAY_NAMES_SHORT[i]}</div>
+                    <div style={{fontSize:12,fontWeight:700,color:isToday?"#C084FC":TXT3,textTransform:"uppercase",letterSpacing:1}}>{DAY_NAMES_SHORT[(d.getDay()+6)%7]}</div>
                     <div style={{fontSize:20,fontWeight:800,lineHeight:1.4,color:isToday?"#C084FC":has?TXT:TXT3}}>{d.getDate()}</div>
                   </div>);})}
               </div>
-              <div style={{display:"grid",gridTemplateColumns:"48px repeat(7, 1fr)",position:"relative",height:totalSlots*SH}}>
+              <div style={{display:"grid",gridTemplateColumns:`48px repeat(${weekDates.length}, 1fr)`,position:"relative",height:totalSlots*SH}}>
                 <div style={{position:"sticky",left:0,zIndex:10,background:BG}}>
-                  {Array.from({length:totalSlots},(_,i)=>{const mins=START_H*60+i*60;const dm=mins>=24*60?mins-24*60:mins;return <div key={i} style={{position:"absolute",top:i*SH-7,right:6,fontSize:12,fontWeight:600,color:TXT2,lineHeight:1}}>{formatHour(dm)}</div>;})}
+                  {Array.from({length:totalSlots*2},(_,i)=>{const mins=START_H*60+i*30;const dm=mins>=24*60?mins-24*60:mins;const half=i%2===1;return <div key={i} style={{position:"absolute",top:i*(SH/2)-7,right:6,fontSize:half?10:14,fontWeight:half?600:800,color:half?"rgba(241,240,247,0.4)":"rgba(241,240,247,0.9)",lineHeight:1}}>{half?":30":formatHour(dm)}</div>;})}
                 </div>
                 {weekDates.map(ds=>{const dayShows=showsByDate[ds]||[];const isToday=ds===todayStr;const timeLineTop=(()=>{if(!isToday)return null;let m=nowMinutes;if(m<START_H*60)m+=24*60;if(m>=END_H*60)return null;return((m-START_H*60)/60)*SH;})();return(
                   <div key={ds} style={{position:"relative",borderLeft:`1px solid rgba(255,255,255,0.05)`,height:totalSlots*SH,background:isToday?"rgba(168,85,247,0.06)":"transparent"}}>
-                    {Array.from({length:totalSlots},(_,i)=>(<div key={i} style={{position:"absolute",top:i*SH,left:0,right:0,height:1,background:"rgba(255,255,255,0.07)"}}/>))}
+                    {Array.from({length:totalSlots*2},(_,i)=>(<div key={i} style={{position:"absolute",top:i*(SH/2),left:0,right:0,height:1,background:i%2===0?"rgba(255,255,255,0.09)":"rgba(255,255,255,0.035)"}}/>))}
                     {timeLineTop!==null&&<div style={{position:"absolute",top:timeLineTop,left:0,right:0,height:2,background:"#C084FC",zIndex:5,boxShadow:"0 0 8px rgba(192,132,252,0.6)"}}><div style={{position:"absolute",left:-3,top:-3,width:8,height:8,borderRadius:4,background:"#C084FC"}}/></div>}
-                    {dayShows.map((show,si)=>{const c=gc(show.organiser);const top=showTop(show);const height=showHeight(show);const sm=height<SH*1.5;return(
+                    {dayShows.map((show,si)=>{const c=gc(show.organiser);const top=showTop(show);const height=showHeight(show);return(
                       <div key={si} onClick={()=>setSelectedShow(show)} style={{
                         position:"absolute",top,left:2,right:2,height,background:c.bg,color:"#fff",
-                        borderRadius:8,padding:sm?"4px 6px":"6px 8px",cursor:"pointer",overflow:"hidden",zIndex:3,
-                        fontSize:sm?13:16,lineHeight:1.3,boxShadow:`0 2px 8px ${c.glow}`,
-                        border:!show.booked?"2px dashed rgba(255,255,255,0.4)":"none",opacity:show.booked?1:0.75,
+                        borderRadius:8,padding:"6px 8px",cursor:"pointer",overflow:"hidden",zIndex:3,
+                        lineHeight:1.25,boxShadow:`0 2px 8px ${c.glow}`,
+                        border:!show.booked?"2px dashed rgba(255,255,255,0.4)":"none",opacity:show.booked?1:0.8,
                       }}>
-                        <div style={{fontWeight:700,lineHeight:1.2}}>{show.name}</div>
-                        <div style={{opacity:0.75,marginTop:2,fontSize:sm?9:11}}>{show.venue.replace("Assembly ","").replace("Gilded Balloon ","GB ").replace("Underbelly ","UB ").replace("Pleasance ","")}</div>
-                        {!sm&&<div style={{opacity:0.85,marginTop:1,fontSize:11}}>{formatTime(show.start)}</div>}
+                        <div style={{fontWeight:700,lineHeight:1.2,fontSize:14}}>{show.name}</div>
+                        <div style={{opacity:0.9,marginTop:2,fontSize:12}}>{show.venue.replace("Assembly ","").replace("Gilded Balloon ","GB ").replace("Underbelly ","UB ").replace("Pleasance ","")}</div>
+                        <div style={{opacity:0.9,marginTop:2,fontSize:12,fontWeight:600}}>{formatTime(show.start)}</div>
+                        <GenrePills show={show} dark/>
                       </div>);})}
                   </div>);})}
               </div>
@@ -359,7 +484,7 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* VIEW ALL */}
       {view==="list"&&(
         <div style={{padding:"8px 0"}}>
-          {dates.map(date=>{const d=new Date(date+"T12:00:00");const dayShows=showsByDate[date]||[];if(!dayShows.length)return null;
+          {bookingsDates.map(date=>{const d=new Date(date+"T12:00:00");const dayShows=bookingsByDate[date]||[];if(!dayShows.length)return null;
             const timeSlots=[
               {label:"Morning",emoji:"🌅",filter:s=>{const m=timeToMinutes(s.start);return m!==null&&m<720;}},
               {label:"Afternoon",emoji:"☀️",filter:s=>{const m=timeToMinutes(s.start);return m!==null&&m>=720&&m<1020;}},
@@ -381,7 +506,7 @@ Use empty string "" for any field you cannot find.`}]})});
                     <div style={{flex:1,height:1,background:CARD_BORDER,marginLeft:4}}/>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {slotShows.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)}/>)}
+                    {slotShows.map((show,i)=>{const di=dayShows.indexOf(show);const prev=di>0?dayShows[di-1]:null;let gap=null;if(prev){const pe=timeToMinutes(prev.end)!=null?timeToMinutes(prev.end):timeToMinutes(prev.start);const ss=timeToMinutes(show.start);if(pe!=null&&ss!=null)gap=ss-pe;}return(<div key={i}>{gap!=null&&<div style={{textAlign:"center",margin:"1px 0 4px"}}><span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:10,background:gap<0?"rgba(239,68,68,0.15)":"rgba(52,211,153,0.15)",color:gap<0?"#EF4444":"#34D399"}}>{gap<0?`overlaps by ${-gap} min`:`${fmtGap(gap)} between shows`}</span></div>}<ShowCard show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)}/></div>);})}
                   </div>
                 </div>);})}
             </div>);})}
@@ -391,7 +516,17 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* WISHLIST */}
       {view==="wishlist"&&(
         <div style={{padding:"16px 8px"}}>
-          <p style={{fontSize:14,color:TXT2,margin:"0 0 16px",textAlign:"center"}}>{filteredWishlist.length} shows in wishlist</p>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,margin:"0 6px 16px",flexWrap:"wrap"}}>
+            <p style={{fontSize:14,color:TXT2,margin:0}}>{filteredWishlist.length} shows in wishlist</p>
+            <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:TXT2,fontWeight:600}}>Sort by
+              <select value={wishlistSort} onChange={e=>setWishlistSort(e.target.value)} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
+                <option value="name">Show name</option>
+                <option value="venue">Venue number</option>
+                <option value="location">Location</option>
+                <option value="duration">Duration</option>
+              </select>
+            </label>
+          </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {filteredWishlist.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)} wishlist interest={interests[reviewKey(show)]} onInterest={v=>setInterest(show,v)}/>)}
           </div>
@@ -423,9 +558,10 @@ Use empty string "" for any field you cannot find.`}]})});
               {rec.description&&<div style={{fontSize:14,color:TXT2,marginBottom:8,lineHeight:1.4}}>{rec.description}</div>}
               <div style={{display:"flex",flexWrap:"wrap",gap:10,fontSize:13,color:TXT2}}>
                 {rec.venue&&<span>📍 {rec.venue}</span>}
-                {rec.start&&<span>🕐 {formatTime(rec.start)}{rec.end?` – ${formatTime(rec.end)}`:""}</span>}
+                {rec.start&&<span style={{color:timeBucketColor(rec.start)||TXT2,fontWeight:700}}>🕐 {formatTime(rec.start)}{rec.end?` – ${formatTime(rec.end)}`:""}</span>}
                 {rec.price&&<span>🎟️ {rec.price}</span>}
               </div>
+              <GenrePills show={rec}/>
               <div style={{display:"flex",gap:10,marginTop:10}}>
                 {rec.link&&<a href={rec.link} target="_blank" rel="noopener noreferrer" style={{fontSize:13,fontWeight:600,color:c.bg}}>View listing →</a>}
                 {pc&&<a href={mapsUrl(rec.address)} target="_blank" rel="noopener noreferrer" style={{fontSize:13,fontWeight:600,color:"#60A5FA"}}>{pc} ↗</a>}
@@ -475,19 +611,79 @@ Use empty string "" for any field you cannot find.`}]})});
               </div>
               <ErrorBoundary><ProposalDay date={prop.date} shows={dayShowsFor(prop)}/></ErrorBoundary>
               {(prop.shows||[]).length>0&&<div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>{(prop.shows||[]).map((s,i)=>(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(168,85,247,0.15)",color:"#C084FC",padding:"3px 9px",borderRadius:8,fontSize:12,fontWeight:600}}>{s.name}<span onClick={()=>removeFromProposal(prop.id,i)} style={{cursor:"pointer",opacity:0.8}}>✕</span></span>))}</div>}
-              <details style={{marginTop:14}}>
-                <summary style={{cursor:"pointer",color:"#C084FC",fontWeight:700,fontSize:13}}>+ Add a show</summary>
-                <AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked)]} onAdd={s=>addToProposal(prop.id,s)}/>
-              </details>
+              <div style={{marginTop:14}}>
+                <button onClick={()=>setAddOpenId(addOpenId===prop.id?null:prop.id)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer"}}><PlusIcon/> Add a show</button>
+                {addOpenId===prop.id&&<AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked)]} onAdd={s=>addToProposal(prop.id,s)}/>}
+              </div>
             </div>
           ))}
         </div>
       )}
 
+      {view==="funfacts"&&(()=>{const f=funFacts;const fmtDate=d=>{if(!d)return "—";const x=new Date(d+"T12:00:00");return `${DAYS_FULL[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]}`;};const cap=w=>w?w.charAt(0).toUpperCase()+w.slice(1):"—";const tiles=[
+        {n:f.booked,l:"shows booked 🎫",cl:"#C084FC",big:true},
+        {n:f.days,l:"days with shows booked 📅",cl:"#60A5FA",big:true},
+        {n:f.attended,l:"shows attended so far 👀",cl:"#34D399",big:true},
+        {n:f.org.value||"—",l:"you saw the most shows from this promoter 🎪",cl:"#F59E0B"},
+        {n:fmtDate(f.topDay),l:`your busiest day, you saw a whopping ${f.topDayN} show${f.topDayN!==1?"s":""} 🔥`,cl:"#F472B6"},
+        {n:f.topMate.values.length?f.topMate.values.join(", "):"—",l:f.topMate.values.length>1?"your top festival buddies 🙌":"your top festival buddy 🙌",cl:"#38BDF8"},
+        {n:cap(f.topBucket),l:"when you see the most shows 🕐",cl:"#A855F7"},
+        {n:f.mostExp?f.mostExp.price:"—",l:(f.mostExp?("your most expensive show was "+f.mostExp.name):"your most expensive show")+" 💸",cl:"#EF4444"},
+        {n:f.cheapest?(f.cheapest.price||"Free"):"—",l:(f.cheapest?(((!f.cheapest.price||poundsOf(f.cheapest.price)===0)?"you bagged a freebie - well done! - and saw ":"the cheapest show you watched was ")+f.cheapest.name):"your cheapest show")+" 🪙",cl:"#34D399"},
+        {n:f.totalMin>0?fmtGap(f.totalMin):"—",l:`you spent hours watching Fringe shows — a total of ${(f.totalMin/1440).toFixed(1)} days! ⏳`,cl:"#F472B6"},
+        {n:f.tightest!=null?fmtGap(f.tightest):"—",l:"tightest turnaround — glad you made it across North Bridge on time! 🏃",cl:"#FB7185"},
+        {n:f.topVenue?(f.topVenue.code||f.topVenue.name||"—"):"—",l:"where you hung out the most 📍",cl:"#22D3EE"},
+        {n:f.earliest?formatTime(f.earliest.start):"—",l:f.earliest?(timeToMinutes(f.earliest.start)<720?"the earliest show time - you early bird! 🐦":"your earliest show time - not one to compromise a long lie! 😴"):"your earliest show",cl:"#FCD34D"},
+        {n:f.latest?formatTime(f.latest.start):"—",l:"your latest show — you night owl! 🦉",cl:"#818CF8"},
+        {n:f.longest?(f.longest.duration||"—"):"—",l:(f.longest?("how long you spent watching "+f.longest.name):"your longest show")+" 🍿",cl:"#34D399"},
+      ];return(
+        <div style={{padding:"18px 14px 50px",maxWidth:760,margin:"0 auto"}}>
+          <h2 style={{fontSize:32,fontWeight:900,textAlign:"center",margin:"0 0 4px",letterSpacing:"-0.5px",lineHeight:1.15}}><span style={{marginRight:8}}>🎉</span><span style={{background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 2px 12px rgba(168,85,247,0.45))"}}>Here are your 2026 Fringe stats!</span><span style={{marginLeft:8}}>🎉</span></h2>
+          <p style={{textAlign:"center",color:TXT2,fontSize:14,marginBottom:22}}>A summary of your Fringe experience this year.</p>
+          <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2, 1fr)":"repeat(3, 1fr)",gap:12,alignItems:"stretch"}}>
+            {tiles.map((t,i)=>(<div key={i} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:"16px 14px",textAlign:"center"}}>
+              <div style={{fontSize:t.big?42:22,fontWeight:900,color:t.cl,lineHeight:1.1,wordBreak:"break-word"}}>{t.n}</div>
+              <div style={{fontSize:12,color:TXT2,marginTop:6,lineHeight:1.35}}>{t.l}</div>
+            </div>))}
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:12,justifyContent:"center",marginTop:12}}>
+            <div style={{flex:"1 1 260px",maxWidth:360,background:"rgba(52,211,153,0.08)",border:"1px solid rgba(52,211,153,0.3)",borderRadius:16,padding:16}}>
+              <div style={{fontSize:20,fontWeight:900,color:"#34D399"}}>{f.favs.length} favourite{f.favs.length!==1?"s":""} 👍👍</div>
+              <div style={{fontSize:13,color:TXT2,marginTop:6,lineHeight:1.4}}>{f.favs.length?f.favs.map(s=>s.name).join(", "):"No two-thumbs-up reviews yet."}</div>
+            </div>
+            <div style={{flex:"1 1 260px",maxWidth:360,background:"rgba(239,68,68,0.08)",border:"1px solid rgba(239,68,68,0.3)",borderRadius:16,padding:16}}>
+              <div style={{fontSize:20,fontWeight:900,color:"#EF4444"}}>{f.hated.length} you disliked 👎👎</div>
+              <div style={{fontSize:13,color:TXT2,marginTop:6,lineHeight:1.4}}>{f.hated.length?f.hated.map(s=>s.name).join(", "):"Nothing you hated — nice!"}</div>
+            </div>
+          </div>
+        </div>
+      );})()}
+
+      {view==="jospicks"&&(
+        <div style={{padding:"14px 12px 50px",maxWidth:760,margin:"0 auto"}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+            <p style={{fontSize:13,color:TXT2,margin:0,flex:"1 1 200px"}}>Drag a card into a lane (or use its lane menu on mobile) to sort every show — booked or not.</p>
+            <div style={{display:"flex",gap:8,flexShrink:0,flexWrap:"wrap"}}><button onClick={saveJoToSheet} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(52,211,153,0.2)",color:"#34D399",fontSize:13,fontWeight:700,cursor:"pointer"}}>Save to sheet</button><button onClick={shareJoPicks} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer"}}>Share snapshot</button></div>
+          </div>
+          <div style={{display:"flex",flexDirection:landscape?"row":"column",gap:landscape?12:0,overflowX:landscape?"auto":"visible",alignItems:"stretch",paddingBottom:landscape?10:0,WebkitOverflowScrolling:"touch"}}>
+          {JO_LANES.map(l=>(
+            <div key={l.id} onDragOver={e=>{e.preventDefault();}} onDrop={()=>{if(joDragKey){setJoLane(joDragKey,l.id);setJoDragKey(null);}}} style={{marginBottom:landscape?0:16,width:landscape?300:"auto",minWidth:landscape?300:"auto",flexShrink:0,maxHeight:landscape?"calc(100vh - 150px)":"none",overflowY:landscape?"auto":"visible",background:(l.id==="all"&&!landscape)?"transparent":"rgba(255,255,255,0.02)",border:(l.id==="all"&&!landscape)?"none":`1px dashed ${CARD_BORDER}`,borderRadius:14,padding:(l.id==="all"&&!landscape)?"0":"8px 8px 6px"}}>
+              <div style={{fontSize:16,fontWeight:800,color:l.id==="all"?TXT2:TXT,padding:"4px 6px 8px",display:"flex",alignItems:"center",gap:8,position:landscape?"sticky":"static",top:0,zIndex:2,background:landscape?BG:"transparent"}}>{l.name} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({joByLane[l.id].length})</span></div>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {joByLane[l.id].length===0&&<div style={{fontSize:12,color:TXT3,padding:"2px 8px 8px"}}>{l.id==="all"?"Everything has been sorted.":"Drop shows here, or pick this lane from a card's menu."}</div>}
+                {joByLane[l.id].map(s=>(<JoCard key={reviewKey(s)} show={s} lane={l.id} lanes={JO_LANES} onLane={v=>setJoLane(reviewKey(s),v)} onOpen={()=>setSelectedShow(s)} dragProps={{draggable:true,onDragStart:()=>setJoDragKey(reviewKey(s)),onDragEnd:()=>setJoDragKey(null)}}/>))}
+              </div>
+            </div>
+          ))}
+          </div>
+        </div>
+      )}
+
       {selectedShow&&(
         <div onClick={()=>setSelectedShow(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)",position:"relative",maxHeight:"90vh",overflowY:"auto"}}>
-            <button onClick={()=>setSelectedShow(null)} style={{position:"absolute",top:14,right:16,background:"none",border:"none",fontSize:20,cursor:"pointer",color:TXT3}}>×</button>
+          <div ref={modalRef} onClick={e=>e.stopPropagation()} onTouchStart={e=>{dragStart.current=(modalRef.current&&modalRef.current.scrollTop<=0)?e.touches[0].clientY:null;}} onTouchMove={e=>{if(dragStart.current!=null){const dy=e.touches[0].clientY-dragStart.current;setDragY(dy>0?dy:0);}}} onTouchEnd={()=>{if(dragY>110)setSelectedShow(null);setDragY(0);dragStart.current=null;}} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)",boxSizing:"border-box",position:"relative",maxHeight:"90vh",overflowY:"auto",transform:dragY?`translateY(${dragY}px)`:"none",transition:dragY?"none":"transform 0.25s ease",touchAction:dragY>0?"none":"auto"}}>
+            <button onClick={()=>setSelectedShow(null)} aria-label="Close" style={{position:"fixed",top:18,right:18,zIndex:1001,width:36,height:36,borderRadius:18,background:"rgba(21,21,40,0.92)",border:`1px solid ${CARD_BORDER}`,fontSize:20,cursor:"pointer",color:TXT,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,boxShadow:"0 2px 8px rgba(0,0,0,0.4)"}}>×</button>
+            <div style={{width:40,height:5,borderRadius:3,background:"rgba(255,255,255,0.25)",margin:"-14px auto 14px"}}/>
             <div style={{display:"inline-block",fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:8,marginBottom:14,background:gc(selectedShow.organiser).bg,color:"#fff",letterSpacing:"0.5px"}}>{selectedShow.organiser}</div>
             <h2 style={{fontSize:24,fontWeight:800,margin:"0 0 4px",color:TXT,lineHeight:1.2}}>{selectedShow.name}</h2>
             <div style={{fontSize:14,color:TXT2,marginBottom:18}}>{selectedShow.venue}</div>
@@ -561,11 +757,38 @@ Use empty string "" for any field you cannot find.`}]})});
 
       {/* LEGEND */}
       <div style={{padding:"24px 12px 40px",borderTop:`1px solid ${CARD_BORDER}`,marginTop:16}}>
-        <div style={{fontSize:11,color:TXT3,marginBottom:10,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Venues</div>
+        <div style={{fontSize:11,color:TXT3,marginBottom:10,textTransform:"uppercase",letterSpacing:2,fontWeight:700}}>Festival Organisers</div>
         <div style={{display:"flex",flexWrap:"wrap",gap:8}}>
-          {Object.entries(OC).map(([name,c])=>(<div key={name} style={{display:"flex",alignItems:"center",gap:5,fontSize:13}}><div style={{width:8,height:8,borderRadius:4,background:c.bg,boxShadow:`0 0 6px ${c.glow}`}}/><span style={{color:TXT2}}>{name}</span></div>))}
+          {Object.entries(OC).sort((a,b)=>a[0].localeCompare(b[0])).map(([name,c])=>(<div key={name} style={{display:"flex",alignItems:"center",gap:5,fontSize:13}}><div style={{width:8,height:8,borderRadius:4,background:c.bg,boxShadow:`0 0 6px ${c.glow}`}}/><span style={{color:TXT2}}>{name}</span></div>))}
+        </div>
+        <div style={{marginTop:22,paddingTop:18,borderTop:`1px solid ${CARD_BORDER}`,textAlign:"center"}}>
+          <button onClick={()=>{setFeedbackSent(false);setShowFeedback(true);}} style={{background:"none",border:"none",padding:0,cursor:"pointer",fontSize:14,fontWeight:700,color:"#93C5FD"}}>Got feedback? Leave it here.</button>
         </div>
       </div>
+      {showFeedback&&(
+        <div onClick={()=>setShowFeedback(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:24,maxWidth:420,width:"100%",boxSizing:"border-box",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
+            {feedbackSent?(
+              <div style={{textAlign:"center",padding:"10px 0"}}>
+                <div style={{fontSize:40,marginBottom:8}}>🎉</div>
+                <div style={{fontSize:18,fontWeight:800,color:TXT,marginBottom:6}}>Thanks for the feedback!</div>
+                <div style={{fontSize:13,color:TXT2,marginBottom:18}}>It's been sent straight to Jo's sheet.</div>
+                <button onClick={()=>setShowFeedback(false)} style={{padding:"10px 20px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:14,fontWeight:700,cursor:"pointer"}}>Close</button>
+              </div>
+            ):(
+              <>
+                <div style={{fontSize:18,fontWeight:800,color:TXT,marginBottom:4}}>Got feedback?</div>
+                <div style={{fontSize:13,color:TXT2,marginBottom:14}}>Bugs, ideas, shows I've missed — leave it here and it'll go straight to Jo.</div>
+                <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} placeholder="Type your feedback..." rows={5} style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+                <div style={{display:"flex",gap:8,marginTop:14,justifyContent:"flex-end"}}>
+                  <button onClick={()=>setShowFeedback(false)} style={{padding:"10px 16px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:14,fontWeight:700,cursor:"pointer"}}>Cancel</button>
+                  <button onClick={submitFeedback} disabled={!feedbackText.trim()} style={{padding:"10px 20px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:14,fontWeight:700,cursor:feedbackText.trim()?"pointer":"default",opacity:feedbackText.trim()?1:0.5}}>Send</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -589,10 +812,35 @@ function haversineM(a,b){const R=6371000,d=Math.PI/180;const dLat=(b.lat-a.lat)*
 function walkMinutes(a,b){const c1=venueCoords(a),c2=venueCoords(b);if(!c1||!c2)return null;return Math.max(1,Math.round(haversineM(c1,c2)/80));}
 function requiredGapMin(a,b){const w=walkMinutes(a,b);return 30+(w||0);}
 function poundsOf(p){if(!p)return 0;const s=String(p).toLowerCase();if(s.includes("free"))return 0;const m=s.match(/(\d+(?:\.\d+)?)/);return m?parseFloat(m[1]):0;}
-function fmtMin(m){if(m==null)return "\u2014";m=((m%1440)+1440)%1440;const h=Math.floor(m/60),mm=m%60;const ap=h>=12?"pm":"am";const h12=h===0?12:h>12?h-12:h;return `${h12}:${String(mm).padStart(2,"0")}${ap}`;}
+function fmtMin(m){if(m==null)return "—";m=((m%1440)+1440)%1440;const h=Math.floor(m/60),mm=m%60;const ap=h>=12?"pm":"am";const h12=h===0?12:h>12?h-12:h;return `${h12}:${String(mm).padStart(2,"0")}${ap}`;}
 function proposalStats(shows){const st=[],en=[];let cost=0;(shows||[]).forEach(s=>{cost+=poundsOf(s.price);const a=timeToMinutes(s.start);if(a!=null){st.push(a);let e=timeToMinutes(s.end);if(e==null)e=a;if(e<a)e+=1440;en.push(e);}});return{startMin:st.length?Math.min(...st):null,endMin:en.length?Math.max(...en):null,cost};}
-function encodeProposal(o){try{return btoa(encodeURIComponent(JSON.stringify(o)));}catch(e){return "";}}
-function decodeProposal(t){try{return JSON.parse(decodeURIComponent(atob(t)));}catch(e){return null;}}
+const JO_LANES=[{id:"all",name:"All"},{id:"newbies",name:"Must sees for newbies"},{id:"pros",name:"Seasoned Pros"},{id:"wild",name:"Wildcards"},{id:"new",name:"New for this Year"}];
+function joSort(a,b){const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);const na=ta==null?1e9:ta,nb=tb==null?1e9:tb;if(na!==nb)return na-nb;return String(a.name||"").localeCompare(String(b.name||""));}
+function encodeJoPicks(byLane){try{const arr=[];Object.keys(byLane).forEach(lane=>{if(lane==="all")return;byLane[lane].forEach(s=>arr.push([s.name,s.venue,s.start,s.end,s.price,s.link||"",s.date||"",lane]));});return LZString.compressToEncodedURIComponent(JSON.stringify(arr));}catch(e){return "";}}
+function decodeJoPicks(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const arr=JSON.parse(s);if(Array.isArray(arr)){const map={all:[],newbies:[],pros:[],wild:[],new:[]};arr.forEach(a=>{const it={name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],link:a[5]||"",date:a[6]||""};if(map[a[7]])map[a[7]].push(it);});return map;}}}catch(e){}return null;}
+function parseJoCsv(csv){try{const r=Papa.parse(csv,{skipEmptyLines:true});const rows=r.data;const map={all:[],newbies:[],pros:[],wild:[],new:[]};if(rows.length<2)return map;for(let k=1;k<rows.length;k++){const row=rows[k];const lane=(row[0]||"").toString().trim();const it={name:(row[1]||"").toString().trim(),venue:(row[2]||"").toString().trim(),start:(row[3]||"").toString().trim(),end:(row[4]||"").toString().trim(),price:(row[5]||"").toString().trim(),link:(row[6]||"").toString().trim(),date:(row[7]||"").toString().trim()};if(!it.name)continue;if(map[lane])map[lane].push(it);else map.newbies.push(it);}return map;}catch(e){return null;}}
+function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps}){
+  const c=gc2(show.organiser);
+  const timeStr=show.start?(formatTime(show.start)+(show.end?(" – "+formatTime(show.end)):"")):"";
+  const btn={display:"inline-flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"none"};
+  return (
+    <div {...(dragProps||{})} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderLeft:`4px solid ${c.bg}`,borderRadius:12,padding:"10px 12px",cursor:dragProps?"grab":"default"}}>
+      <div onClick={onOpen} style={{cursor:onOpen?"pointer":"default"}}>
+        <div style={{fontSize:15,fontWeight:700,color:TXT,lineHeight:1.25}}>{show.name}</div>
+        <div style={{fontSize:12,color:TXT2,marginTop:3,display:"flex",gap:8,flexWrap:"wrap"}}>{timeStr&&<span>{timeStr}</span>}{show.venue&&<span>{"· "+show.venue}</span>}{show.price&&<span style={{fontWeight:700,color:TXT}}>{"· "+show.price}</span>}</div>
+        <GenrePills show={show}/>
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",marginTop:10}}>
+        {show.date&&<button onClick={()=>downloadShowICS(show)} style={btn}><AppleIcon/> iCal</button>}
+        {show.date&&<a href={gcalUrl(show)} target="_blank" rel="noopener noreferrer" style={btn}><GoogleIcon/> Google</a>}
+        {show.link&&<a href={show.link} target="_blank" rel="noopener noreferrer" style={btn}>EdFest ↗</a>}
+        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"#151528",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:"dark"}}>{lanes.map(l=>(<option key={l.id} value={l.id}>{l.name}</option>))}</select>}
+      </div>
+    </div>
+  );
+}
+function encodeProposal(o){try{const c={t:o.title||"",d:o.date||"",s:(o.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||""])};return LZString.compressToEncodedURIComponent(JSON.stringify(c));}catch(e){return "";}}
+function decodeProposal(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.s))return{title:o.t||"",date:o.d||"",shows:o.s.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||""}))};if(o&&o.shows)return o;}}catch(e){}try{return JSON.parse(decodeURIComponent(atob(t)));}catch(e){return null;}}
 class ErrorBoundary extends Component{
   constructor(p){super(p);this.state={err:null};}
   static getDerivedStateFromError(e){return {err:e};}
@@ -603,7 +851,7 @@ function AddShowList({shows,onAdd}){
   const list=[...(shows||[])].filter(s=>s&&s.name).sort((a,b)=>{const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).filter(s=>{const t=q.trim().toLowerCase();return !t||s.name.toLowerCase().includes(t);});
   return (<div style={{marginTop:8}}>
     <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search shows by name..." style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
-    <div style={{maxHeight:240,overflowY:"auto",border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
+    <div style={{maxHeight:"max(240px, calc(100vh - 320px))",overflowY:"auto",border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
       {list.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
         <span style={{fontSize:13,color:TXT2,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><b style={{color:TXT}}>{s.start?formatTime(s.start):"—"}</b> · {s.name} <span style={{color:TXT3}}>· {s.venue}</span></span>
         <span style={{flexShrink:0,width:26,height:26,borderRadius:8,background:"rgba(168,85,247,0.25)",color:"#C084FC",fontSize:16,fontWeight:800,lineHeight:"26px",textAlign:"center"}}>+</span>
@@ -612,6 +860,8 @@ function AddShowList({shows,onAdd}){
     </div>
   </div>);
 }
+function OpenIcon({size=13}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4h6v6"/><path d="M20 4 L10 14"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg>;}
+function fmtGap(m){if(m<60)return m+" min";const h=Math.floor(m/60),mm=m%60;return mm?h+"h "+mm+"m":h+"h";}
 function normDayMin(t){let m=timeToMinutes(t);if(m==null)return null;if(m<360)m+=1440;return m;}
 function ProposalDay({date,shows}){
   const items=(shows||[]).filter(s=>s.start).map(s=>{const sm=normDayMin(s.start);let em=normDayMin(s.end);if(em==null||em<=sm)em=sm+60;return {...s,_s:sm,_e:em};}).sort((a,b)=>a._s-b._s);
@@ -638,21 +888,22 @@ function ProposalDay({date,shows}){
           <div key={k} style={{position:"absolute",top,height:bh,left:`calc(${it._lane*w}% + 3px)`,width:`calc(${w}% - 6px)`,background:col,opacity:proposed?1:0.4,borderRadius:8,padding:"4px 8px",overflow:"hidden",color:"#fff",boxSizing:"border-box",zIndex:2,display:"flex",alignItems:"center",justifyContent:"space-between",gap:6,boxShadow:it._ov?"0 0 0 2px #EF4444":"none",border:proposed?"none":"1px dashed rgba(255,255,255,0.6)"}}>
             <div style={{minWidth:0,flex:1}}>
               <div style={{fontSize:14,fontWeight:700,lineHeight:1.15,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{it.name}</div>
+              <GenrePills show={it} dark/>
               <div style={{fontSize:14,fontWeight:600,opacity:0.9,whiteSpace:"nowrap"}}>{formatTime(it.start)}{proposed?"":" · booked"}</div>
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
               {it.price&&<span style={{fontSize:15,fontWeight:800,whiteSpace:"nowrap"}}>{it.price}</span>}
-              {it.link&&<a href={it.link} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} title="Open show page" style={{color:"#fff",textDecoration:"none",fontSize:15,fontWeight:800,opacity:0.9}}>↗</a>}
+              {it.link&&<a href={it.link} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} title="Open show page" style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:24,height:24,borderRadius:7,background:"#fff",color:col,textDecoration:"none",flexShrink:0,boxShadow:"0 1px 4px rgba(0,0,0,0.35)"}}><OpenIcon/></a>}
             </div>
           </div>);})}
       </div>
     </div>
-    <div style={{display:"flex",gap:14,marginTop:8,fontSize:11,color:TXT3,flexWrap:"wrap",alignItems:"center"}}>
-      <span style={{display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:3,background:"#A855F7",display:"inline-block"}}/>proposed</span>
-      <span style={{display:"inline-flex",alignItems:"center",gap:4}}><span style={{width:10,height:10,borderRadius:3,background:"#A855F7",opacity:0.4,display:"inline-block"}}/>already booked</span>
-      <span style={{color:"#34D399"}}>green = travel ok</span>
-      <span style={{color:"#EF4444"}}>red = too tight / overlap</span>
-      <span>↗ opens the show page</span>
+    <div style={{marginTop:10,fontSize:12,color:TXT2,lineHeight:1.5}}>
+      <div style={{display:"flex",gap:12,flexWrap:"wrap",alignItems:"center",marginBottom:5}}>
+        <span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:11,height:11,borderRadius:3,background:"#A855F7",display:"inline-block"}}/>Shows you're proposing</span>
+        <span style={{display:"inline-flex",alignItems:"center",gap:5}}><span style={{width:11,height:11,borderRadius:3,background:"#A855F7",opacity:0.4,display:"inline-block"}}/>Already booked</span>
+      </div>
+      <div style={{color:TXT3}}>The bars between shows show whether there's time to get from one venue to the next — <span style={{color:"#34D399",fontWeight:700}}>green</span> means you're fine, <span style={{color:"#EF4444",fontWeight:700}}>red</span> means it's too tight. Tap the ↗ on any show to open its page.</div>
     </div>
   </div>);
 }
@@ -669,6 +920,8 @@ function InterestIcon({kind,size=16}){
   };
   return <svg width={size} height={size} viewBox="0 0 16 16" fill="currentColor" style={{display:"block"}}>{svg[kind]}</svg>;
 }
+function genresOf(s){return String((s&&s.genres)||"").split("|").map(x=>x.trim()).filter(Boolean);}
+function GenrePills({show,dark}){const gs=genresOf(show);if(!gs.length)return null;return <div style={{display:"flex",gap:4,flexWrap:"wrap",marginTop:5}}>{gs.map((g,i)=>(<span key={i} style={{fontSize:10,fontWeight:700,padding:"2px 7px",borderRadius:6,lineHeight:1.3,background:dark?"rgba(255,255,255,0.22)":"rgba(168,85,247,0.16)",color:dark?"#fff":"#C084FC"}}>{g}</span>))}</div>;}
 function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,onAddTag,onRemoveTag}){
   const c=gc2(show.organiser);const pc=extractPostcode(show.address);
   const [reviewOpen,setReviewOpen]=useState(false);
@@ -688,22 +941,18 @@ function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,
               {show.ltf&&<span style={{marginLeft:6,fontSize:10,background:"rgba(255,186,8,0.2)",color:"#FFBA08",padding:"2px 6px",borderRadius:4,fontWeight:700}}>LTF</span>}
             </div>
             <div style={{fontSize:13,color:TXT2,marginTop:3}}>
-              {show.venue}{pc&&<> · <a href={mapsUrl(show.address)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>}
+              {show.venue}{show.venueCode?<span style={{color:TXT3}}> · Venue {show.venueCode}</span>:null}
               {show.availability&&<> · <span style={{fontWeight:600,color:show.availability==="Sold Out"?"#EF4444":show.availability==="Limited"?"#FB923C":show.availability==="Available"?"#34D399":TXT2}}>{show.availability}</span></>}
             </div>
+            {(show.fullAddress||show.address)&&<div style={{fontSize:12,color:TXT2,marginTop:3}}><span style={{fontSize:16,filter:"saturate(1.4) brightness(1.15)",verticalAlign:"-2px"}}>📍</span> <a href={mapsUrl(show.fullAddress||show.address)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{color:"#60A5FA",fontWeight:600}}>{show.fullAddress||show.address}</a></div>}
+            <GenrePills show={show}/>
           </div>
-          <div style={{textAlign:"right",flexShrink:0}}>
+          <div style={{textAlign:"right",flexShrink:0,maxWidth:"46%"}}>
             <div style={{fontSize:18,fontWeight:800,color:timeBucketColor(show.start)||TXT}}>{formatTime(show.start)}</div>
             <div style={{fontSize:12,color:TXT2}}>{show.duration}</div>
+            {show.attendees&&<div style={{display:"flex",gap:4,marginTop:8,flexWrap:"wrap",justifyContent:"flex-end"}}>{show.attendees.split(",").map((p,pi)=>(<span key={pi} style={{display:"inline-flex",alignItems:"center",gap:3,background:"rgba(255,255,255,0.07)",color:TXT2,padding:"2px 8px",borderRadius:10,fontSize:13,fontWeight:600}}><UserIcon/>{p.trim()}</span>))}</div>}
           </div>
         </div>
-        {show.attendees&&(
-          <div style={{display:"flex",gap:4,marginTop:7,flexWrap:"wrap"}}>
-            {show.attendees.split(",").map((p,pi)=>(
-              <span key={pi} style={{display:"inline-flex",alignItems:"center",gap:3,background:"rgba(255,255,255,0.07)",color:TXT2,padding:"2px 8px",borderRadius:10,fontSize:13,fontWeight:600}}><UserIcon/>{p.trim()}</span>
-            ))}
-          </div>
-        )}
       </div>
     </div>
   );
@@ -711,8 +960,21 @@ function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,
 
 function gc2(org){return OC[org]||{bg:"#64748B",glow:"rgba(100,116,139,0.3)"};}
 
+function MultiDrop({open,onToggle,label,icon,options,selected,onSelect,onClear,accent="#93C5FD"}){
+  const n=selected.length;
+  return (
+    <div style={{position:"relative"}}>
+      <button onClick={onToggle} style={{padding:"7px 14px",borderRadius:20,border:`1px solid ${CARD_BORDER}`,fontSize:13,fontWeight:700,cursor:"pointer",background:n?accent+"22":"rgba(255,255,255,0.06)",color:n?accent:TXT,display:"inline-flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{n?label+" ("+n+")":label} ▾</button>
+      {open&&(<div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:60,background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:12,padding:6,minWidth:180,maxHeight:280,overflowY:"auto",boxShadow:"0 10px 30px rgba(0,0,0,0.6)"}}>
+        {n>0&&<div onClick={onClear} style={{fontSize:12,color:accent,fontWeight:700,padding:"5px 8px",cursor:"pointer"}}>Clear all</div>}
+        {options.length===0&&<div style={{fontSize:12,color:TXT3,padding:"7px 8px",whiteSpace:"nowrap"}}>Nothing to filter yet</div>}
+        {options.map(opt=>(<label key={opt.value} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",cursor:"pointer",fontSize:13,color:TXT,borderRadius:8,background:selected.includes(opt.value)?accent+"26":"transparent"}}><input type="checkbox" checked={selected.includes(opt.value)} onChange={()=>onSelect(opt.value)} style={{accentColor:accent}}/>{opt.dot&&<span style={{width:9,height:9,borderRadius:3,background:opt.dot,display:"inline-block",flexShrink:0}}/>}{opt.label}</label>))}
+      </div>)}
+    </div>
+  );
+}
 function TabBtn({active,onClick,children,accent}){
-  return <button onClick={onClick} style={{padding:"8px 20px",borderRadius:24,border:"none",fontSize:14,fontWeight:700,cursor:"pointer",letterSpacing:"0.3px",background:active?(accent?ACCENT:"rgba(255,255,255,0.12)"):"transparent",color:active?"#fff":accent?"#C084FC":TXT2,transition:"all 0.15s"}}>{children}</button>;
+  return <button onClick={onClick} style={{padding:"8px 20px",borderRadius:24,border:"none",fontSize:14,fontWeight:700,cursor:"pointer",letterSpacing:"0.3px",background:active?"rgba(255,255,255,0.14)":"transparent",color:active?"#fff":TXT2,transition:"all 0.15s"}}>{children}</button>;
 }
 function Chip({a,o,children,c}){
   const bg=c||"#FF4D6A";
