@@ -84,7 +84,35 @@ function parseTime(t){if(!t)return null;const c=t.trim().replace(/:\d{2}$/,"");i
 function parseDate(d){if(!d)return null;const p=d.trim().split("/");if(p.length!==3)return null;const[dd,mm,yyyy]=p;if(!dd||!mm||!yyyy||yyyy.length!==4)return null;return`${yyyy}-${mm.padStart(2,"0")}-${dd.padStart(2,"0")}`;}
 function parseDuration(s,e){const sm=timeToMinutes(parseTime(s));const em=timeToMinutes(parseTime(e));if(sm===null||em===null)return"";let d=em-sm;if(d<=0)d+=24*60;const h=Math.floor(d/60);const m=d%60;if(h&&m)return`${h}h${m.toString().padStart(2,"0")}`;if(h)return`${h}h`;return`${m}m`;}
 function durationMinutes(show){const s=timeToMinutes(show.start);const e=timeToMinutes(show.end);if(s===null||e===null)return 0;let d=e-s;if(d<=0)d+=24*60;return d;}
-function parseCSVToShows(csv){const r=Papa.parse(csv,{skipEmptyLines:true});const rows=r.data;if(rows.length<2)return{shows:[],wishlist:[]};const shows=[],wishlist=[];const hdr=rows[0].map(h=>(h||"").toString().trim().toLowerCase());const availIdx=hdr.indexOf("availability");for(let i=1;i<rows.length;i++){const r2=rows[i];const name=(r2[2]||"").trim();if(!name)continue;const bf=(r2[0]||"").trim();const link=(r2[3]||"").trim();const price=(r2[4]||"").trim();const org=(r2[5]||"").trim();const venue=(r2[6]||"").trim();const st=parseTime(r2[7]);const et=parseTime(r2[8]);const ltf=(r2[10]||"").trim().toLowerCase()==="yes";const booked=(r2[11]||"").trim().toLowerCase()==="yes"?1:0;const date=parseDate(r2[12]);const att=(r2[14]||"").trim();const tix=parseInt(r2[15])||0;const notes=(r2[18]||"").trim();const addr=(r2[19]||"").trim();const dur=parseDuration(r2[7],r2[8]);const avail=availIdx>=0?(r2[availIdx]||"").trim():"";const show={name,link,price,organiser:org,venue,start:st,end:et,duration:dur,ltf,booked,date,attendees:att,tickets:tix,notes,address:addr,availability:avail};if(date)shows.push(show);else if(name&&bf==="0")wishlist.push(show);}return{shows,wishlist};}
+function parseCSVToShows(csv){
+  const r=Papa.parse(csv,{skipEmptyLines:true});
+  const rows=r.data;
+  if(rows.length<2)return{shows:[],wishlist:[]};
+  // Match columns BY HEADER NAME (first match) so re-ordering the sheet can't break this.
+  const hdr=rows[0].map(h=>(h||"").toString().trim().toLowerCase());
+  const col=n=>hdr.indexOf(n.toLowerCase());
+  const iName=col("name of show"),iLink=col("link"),iPrice=col("price"),
+        iOrg=col("organiser"),iVenue=col("where showing"),iStart=col("time start"),
+        iEnd=col("time end"),iLtf=col("lovethefringe"),iBooked=col("booked"),
+        iDate=col("date"),iAtt=col("additional tickets"),iTix=col("total tix"),
+        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability");
+  const g=(row,i)=>i>=0&&row[i]!=null?String(row[i]).trim():"";
+  const shows=[],wishlist=[];
+  for(let k=1;k<rows.length;k++){
+    const row=rows[k];
+    const name=g(row,iName);
+    if(!name)continue;
+    const date=parseDate(g(row,iDate));
+    const show={name,link:g(row,iLink),price:g(row,iPrice),organiser:g(row,iOrg),
+      venue:g(row,iVenue),start:parseTime(g(row,iStart)),end:parseTime(g(row,iEnd)),
+      duration:parseDuration(g(row,iStart),g(row,iEnd)),
+      ltf:g(row,iLtf).toLowerCase()==="yes",booked:g(row,iBooked).toLowerCase()==="yes"?1:0,
+      date,attendees:g(row,iAtt),tickets:parseInt(g(row,iTix))||0,
+      notes:g(row,iNotes),address:g(row,iAddr),availability:g(row,iAvail)};
+    if(date)shows.push(show);else wishlist.push(show);
+  }
+  return{shows,wishlist};
+}
 function timeToMinutes(t){if(!t)return null;const[h,m]=t.split(":").map(Number);return h*60+m;}
 function formatTime(t){if(!t)return"";const[h,m]=t.split(":");const hr=parseInt(h);const ap=hr>=12?"pm":"am";const h12=hr===0?12:hr>12?hr-12:hr;return`${h12}:${m}${ap}`;}
 function formatHour(min){const h=Math.floor(min/60);const ap=h>=12?"pm":"am";const h12=h===0?12:h>12?h-12:h;return`${h12}${ap}`;}
