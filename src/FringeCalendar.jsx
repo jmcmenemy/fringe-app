@@ -4,6 +4,10 @@ var LZString=function(){var r=String.fromCharCode,o="ABCDEFGHIJKLMNOPQRSTUVWXYZa
 import Papa from "papaparse";
 
 const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdAFEpJDVvI1L_f5GgtZjscx7IyDlbDma2nwlFqZt-UdbeoXNwDOOijfZtV6jmeDmKkpD6BDD3fZ1y/pub?output=csv";
+// Full Fringe catalogue: the "All" tab of Jo's sheet (headers in row 1, ~4000 rows), read directly
+// via the gviz CSV endpoint (works because the sheet is shared "anyone with the link can view").
+const ALL_CSV_URL = "https://docs.google.com/spreadsheets/d/15aHnYGBL73-n6MOf2Su1hlEG7FxReUjEyc90_AZugB0/gviz/tq?tqx=out:csv&sheet=All&headers=1";
+const HELP_URL = "https://docs.google.com/spreadsheets/d/15aHnYGBL73-n6MOf2Su1hlEG7FxReUjEyc90_AZugB0/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent("Help - me");
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz6HNRYWBhQ2GoTV_30wGZ-xpHPbYdSqswePtgracYR8rQ_PATiCX5J1-u2rxb8jErf/exec";
 const JOPICKS_CSV_URL = ""; // paste the published-CSV URL of the sheet's "JoPicks" tab to switch on the static #jolive link
 
@@ -100,7 +104,7 @@ function parseCSVToShows(csv){
         iOrg=col("organiser"),iVenue=col("where showing"),iStart=col("time start"),
         iEnd=col("time end"),iLtf=col("lovethefringe"),iBooked=col("booked"),
         iDate=col("date"),iAtt=col("additional tickets"),iTix=col("total tix"),
-        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability"),iVenueCode=col("venue #"),iGenre=col("genre");
+        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability"),iVenueCode=col("venue #"),iGenre=col("genre"),iJoCat=col("jo category");
   const g=(row,i)=>i>=0&&row[i]!=null?String(row[i]).trim():"";
   const shows=[],wishlist=[];
   for(let k=1;k<rows.length;k++){
@@ -113,7 +117,7 @@ function parseCSVToShows(csv){
       duration:parseDuration(g(row,iStart),g(row,iEnd)),
       ltf:g(row,iLtf).toLowerCase()==="yes",booked:g(row,iBooked).toLowerCase()==="yes"?1:0,
       date,attendees:g(row,iAtt),tickets:parseInt(g(row,iTix))||0,venueCode:g(row,iVenueCode),
-      notes:g(row,iNotes),address:g(row,iAddr),fullAddress:(g(row,20)||g(row,iAddr)),availability:g(row,iAvail),genres:g(row,iGenre)};
+      notes:g(row,iNotes),address:g(row,iAddr),fullAddress:(g(row,20)||g(row,iAddr)),availability:g(row,iAvail),genres:g(row,iGenre),joCat:g(row,iJoCat)};
     if(date)shows.push(show);else wishlist.push(show);
   }
   return{shows,wishlist};
@@ -132,6 +136,10 @@ function fIcsStamp(dateISO,hm){const[y,mo,da]=dateISO.split("-");const[h,mi]=(hm
 function fAddDayISO(dateISO){const d=new Date(dateISO+"T12:00:00");d.setDate(d.getDate()+1);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
 function fEndInfo(s){let endDate=s.date,end=s.end||s.start||"00:00";if(s.end&&s.start&&timeToMinutes(s.end)<=timeToMinutes(s.start))endDate=fAddDayISO(s.date);return{endDate,end};}
 function icsForShow(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const esc=t=>String(t||"").replace(/\\/g,"\\\\").replace(/;/g,"\\;").replace(/,/g,"\\,").replace(/\n/g,"\\n");const uid=(String(s.name)+s.date+start).toLowerCase().replace(/[^a-z0-9]+/g,"-")+"@fringe-app";const desc=[s.price?("Price: "+s.price):"",s.notes||""].filter(Boolean).join("\n");const lines=["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//fringe-app//EN","CALSCALE:GREGORIAN","BEGIN:VEVENT","UID:"+uid,"DTSTAMP:"+fIcsStamp(s.date,start),"DTSTART:"+fIcsStamp(s.date,start),"DTEND:"+fIcsStamp(endDate,end),"SUMMARY:"+esc(s.name+(s.venue?(" | "+s.venue):"")),s.address?("LOCATION:"+esc(s.address)):"",s.link?("URL:"+esc(s.link)):"","DESCRIPTION:"+esc(desc),"BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Reminder","TRIGGER:-PT1H","END:VALARM","BEGIN:VALARM","ACTION:DISPLAY","DESCRIPTION:Reminder","TRIGGER:-PT30M","END:VALARM","END:VEVENT","END:VCALENDAR"].filter(Boolean);return lines.join("\r\n");}
+function csvRows(text){const rows=[];let row=[],cell="",inQ=false;for(let i=0;i<text.length;i++){const ch=text[i];if(inQ){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else inQ=false;}else cell+=ch;}else{if(ch==='"')inQ=true;else if(ch===","){row.push(cell);cell="";}else if(ch==="\n"){row.push(cell);rows.push(row);row=[];cell="";}else if(ch!=="\r")cell+=ch;}}if(cell!==""||row.length){row.push(cell);rows.push(row);}return rows;}
+function parseCatalogCSV(text){const rows=csvRows(text);if(rows.length<2)return[];const hdr=rows[0].map(h=>String(h||"").trim().toLowerCase());const ix=n=>hdr.indexOf(n);const iT=ix("title"),iV=ix("venue"),iVC=ix("venue code"),iW=ix("website"),iG=ix("genre"),iGT=ix("genre tags"),iA=ix("artist");if(iT<0)return[];const out=[];for(let r=1;r<rows.length;r++){const g=j=>j>=0?String(rows[r][j]||"").trim():"";const name=g(iT);if(!name)continue;const genres=[g(iG),g(iGT)].filter(Boolean).join(", ");out.push({name,venue:g(iV),venueCode:g(iVC),link:g(iW),genres,artist:g(iA),start:"",end:"",price:"",organiser:"",address:"",fullAddress:"",booked:0,fromCatalog:true});}return out;}
+function icsForShows(list){const evs=list.map(s=>{const full=icsForShow(s);const m=full.match(/BEGIN:VEVENT[\s\S]*END:VEVENT/);return m?m[0]:"";}).filter(Boolean);return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//fringe-app//EN","CALSCALE:GREGORIAN",...evs,"END:VCALENDAR"].join("\r\n");}
+function downloadShowsICS(list){const blob=new Blob([icsForShows(list)],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="fringe-bookings.ics";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}
 function downloadShowICS(s){const blob=new Blob([icsForShow(s)],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(String(s.name)||"show").replace(/[^a-z0-9]+/gi,"-").toLowerCase().replace(/^-|-$/g,"")+".ics";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}
 function gcalUrl(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(s);const q=new URLSearchParams({action:"TEMPLATE",text:s.name+(s.venue?(" | "+s.venue):""),dates:fIcsStamp(s.date,start)+"/"+fIcsStamp(endDate,end),location:s.address||s.venue||"",details:s.link||"",ctz:"Europe/London"});return "https://calendar.google.com/calendar/render?"+q.toString();}
 function matchesSearch(show,q){if(!q)return true;const l=q.toLowerCase();return[show.name,show.venue,show.start,show.end,show.attendees,show.organiser,show.address,show.price].filter(Boolean).some(f=>f.toLowerCase().includes(l));}
@@ -171,6 +179,7 @@ function FringeCalendarInner(){
   const[proposals,setProposals]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-proposals")||"[]");}catch{return[];}});
   const saveProposals=next=>{try{localStorage.setItem("fringe-proposals",JSON.stringify(next));}catch{}setProposals(next);};
   const shared=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]p=([^&]+)/);return m?decodeProposals(decodeURIComponent(m[1])):null;},[]);
+  const sharedBookings=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]b=([^&]+)/);return m?decodeBookings(decodeURIComponent(m[1])):null;},[]);
   const sharedJo=useMemo(()=>{const h=typeof window!=="undefined"?window.location.hash:"";const m=h.match(/[#&]j=([^&]+)/);return m?decodeJoPicks(decodeURIComponent(m[1])):null;},[]);
   useEffect(()=>{const on=()=>{const h=window.location.hash.replace(/^#/,"");if(h.startsWith("p="))return;const map={all:"list",picks:"recs",fun:"funfacts",jo:"jospicks"};const v=map[h]||h;if(["calendar","map","list","wishlist","recs","proposal","funfacts","jospicks"].includes(v))setView(v);};window.addEventListener("hashchange",on);return()=>window.removeEventListener("hashchange",on);},[]);
   const dayShowsFor=prop=>{const added=prop.shows||[];const key=s=>`${s.name}|${s.start}`.toLowerCase();const seen=new Set(added.map(key));const booked=allShows.filter(s=>s.booked&&s.date===prop.date&&!seen.has(key(s)));return[...added,...booked];};
@@ -189,12 +198,27 @@ function FringeCalendarInner(){
   const[genreFilter,setGenreFilter]=useState([]);
   const[openDrop,setOpenDrop]=useState(null);
   const[wishlistSort,setWishlistSort]=useState("name");
+  const[wishCols,setWishCols]=useState(1);
   const[weekIdx,setWeekIdx]=useState(0);
   const[customRange,setCustomRange]=useState(null);
+  const[bookingsDay,setBookingsDay]=useState("");
+  const[propLayout,setPropLayout]=useState(()=>{try{return localStorage.getItem("fringe-proposal-layout")||"vertical";}catch(e){return "vertical";}});
+  const[dateOpenId,setDateOpenId]=useState(null);
+  const[collapsedProps,setCollapsedProps]=useState({});
+  const toggleCollapse=id=>setCollapsedProps(m=>({...m,[id]:!m[id]}));
+  const[helpOpen,setHelpOpen]=useState(false);
+  const[help,setHelp]=useState(null);
+  useEffect(()=>{if(!helpOpen)return;if(Array.isArray(help))return;setHelp("loading");fetch(HELP_URL).then(r=>r.text()).then(t=>{let rows=(Papa.parse(t,{skipEmptyLines:true}).data)||[];if(rows.length&&rows[0].some(cc=>/^(title|section|question|heading|topic|content|answer|body|text|help)$/i.test((cc||"").trim())))rows=rows.slice(1);setHelp(rows);}).catch(()=>setHelp("error"));},[helpOpen]);
   const[datePickerOpen,setDatePickerOpen]=useState(false);
   const[pickStart,setPickStart]=useState("");
   const[pickEnd,setPickEnd]=useState("");
   const[showFilterMenu,setShowFilterMenu]=useState(false);
+  const[fabPos,setFabPos]=useState(null);const fabDrag=useRef(null);
+  const[shareMode,setShareMode]=useState(false);const[shareSel,setShareSel]=useState(()=>new Set());
+  const toggleShareSel=s=>{const k=reviewKey(s);setShareSel(prev=>{const n=new Set(prev);if(n.has(k))n.delete(k);else n.add(k);return n;});};
+  const copyBookingsLink=()=>{const sel=allShows.filter(s=>s.booked===1&&shareSel.has(reviewKey(s)));if(!sel.length){window.alert("Tick at least one booked show first.");return;}const token=encodeBookings(sel);const url=`${window.location.origin}${window.location.pathname}#b=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Share link with "+sel.length+" booking"+(sel.length!==1?"s":"")+" copied — send it to a friend:\n\n"+url);};
+  const[allCatalog,setAllCatalog]=useState(null);const[catState,setCatState]=useState("idle");
+  const loadCatalog=()=>{if(allCatalog||catState==="loading")return;if(!ALL_CSV_URL){setCatState("unconfigured");return;}setCatState("loading");fetch(ALL_CSV_URL).then(r=>{if(!r.ok)throw 0;return r.text();}).then(t=>{const items=parseCatalogCSV(t);setAllCatalog(items);setCatState(items.length?"ready":"error");}).catch(()=>setCatState("error"));};
   const[showFeedback,setShowFeedback]=useState(false);
   const[feedbackText,setFeedbackText]=useState("");
   const[feedbackSent,setFeedbackSent]=useState(false);
@@ -240,7 +264,7 @@ function FringeCalendarInner(){
   const resetRange=()=>{setCustomRange(null);setDatePickerOpen(false);};
   const showsByDate=useMemo(()=>{const map={};filteredShows.forEach(s=>{if(!map[s.date])map[s.date]=[];map[s.date].push(s);});Object.values(map).forEach(arr=>{if(sortBy==="duration")arr.sort((a,b)=>durationMinutes(a)-durationMinutes(b));else arr.sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0));});return map;},[filteredShows,sortBy]);
 
-  const SH=110;const START_H=10;const END_H=26;const totalSlots=(END_H-START_H);
+  const SH=110;const {START_H,END_H}=useMemo(()=>{let minM=Infinity,maxM=-Infinity;const adj=m=>m==null?null:(m<300?m+1440:m);weekDates.forEach(ds=>(showsByDate[ds]||[]).forEach(s=>{const st=adj(timeToMinutes(s.start));if(st==null)return;let en=adj(timeToMinutes(s.end));if(en==null||en<=st)en=st+60;if(st<minM)minM=st;if(en>maxM)maxM=en;}));if(minM===Infinity)return{START_H:10,END_H:20};const sMin=Math.floor((minM-30)/30)*30,eMin=Math.ceil((maxM+30)/30)*30;return{START_H:sMin/60,END_H:Math.max(sMin/60+1,eMin/60)};},[weekDates,showsByDate]);const totalSlots=(END_H-START_H);
   function showTop(s){let m=timeToMinutes(s.start);if(m===null)return 0;if(m<START_H*60)m+=24*60;return((m-START_H*60)/60)*SH;}
   function showHeight(s){let st=timeToMinutes(s.start);let en=timeToMinutes(s.end);if(st===null||en===null)return SH;if(en<=st)en+=24*60;if(st<START_H*60)st+=24*60;return Math.max(((en-st)/60)*SH,SH*0.4);}
 
@@ -273,9 +297,13 @@ function FringeCalendarInner(){
   const[joPMax,setJoPMax]=useState(null);
   const toggleJoLane=v=>setJoLaneFilter(prev=>prev.includes(v)?prev.filter(x=>x!==v):[...prev,v]);
   const joItems=useMemo(()=>{const seen=new Set();const out=[];[...allShows,...wishlist].forEach(s=>{const k=reviewKey(s);if(seen.has(k))return;seen.add(k);out.push(s);});return out;},[allShows,wishlist]);
-  const joByLane=useMemo(()=>{const map={all:[],newbies:[],pros:[],wild:[],new:[]};joItems.forEach(s=>{const lane=joLanes[reviewKey(s)]||"all";(map[lane]||map.all).push(s);});Object.keys(map).forEach(k=>map[k].sort(joSort));return map;},[joItems,joLanes]);
+  const catOf=s=>(joLanes[reviewKey(s)]||s.joCat||"").trim();
+  const joCats=useMemo(()=>{const seen=new Set(),out=[];joItems.forEach(s=>{const cc=(s.joCat||"").trim();if(cc&&!seen.has(cc)){seen.add(cc);out.push(cc);}});joItems.forEach(s=>{const cc=catOf(s);if(cc&&!seen.has(cc)){seen.add(cc);out.push(cc);}});return out;},[joItems,joLanes]);
+  const joByLane=useMemo(()=>{const map={};joItems.forEach(s=>{const cc=catOf(s)||"Uncategorised";(map[cc]=map[cc]||[]).push(s);});Object.keys(map).forEach(k=>map[k].sort(joSort));return map;},[joItems,joLanes]);
   const joPriceMax=useMemo(()=>{let m=0;joItems.forEach(s=>{const p=poundsOf(s.price);if(p>m)m=p;});return Math.max(5,Math.ceil(m));},[joItems]);
-  const joCards=useMemo(()=>joItems.filter(s=>{if(joLaneFilter.length&&!joLaneFilter.includes(joLanes[reviewKey(s)]||"all"))return false;const p=poundsOf(s.price);if(p<joPMin)return false;if(joPMax!=null&&p>joPMax)return false;return true;}).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),[joItems,joLanes,joLaneFilter,joPMin,joPMax]);
+  const joCards=useMemo(()=>joItems.filter(s=>{if(!inOrg(s))return false;if(!inGenre(s))return false;if(!inTime(s))return false;if(searchQuery.trim()&&!matchesSearch(s,searchQuery))return false;if(joLaneFilter.length&&!joLaneFilter.includes(catOf(s)))return false;const p=poundsOf(s.price);if(p<joPMin)return false;if(joPMax!=null&&p>joPMax)return false;return true;}).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),[joItems,joLanes,joLaneFilter,joPMin,joPMax,orgFilter,genreFilter,timeFilters,searchQuery]);
+  const fData=view==="wishlist"?wishlist:view==="recs"?recommendations:view==="jospicks"?joItems:allShows;
+  const fHas={org:fData.some(s=>s&&s.organiser),genre:fData.some(s=>genresOf(s).length>0),people:fData.some(s=>((s&&s.attendees)||"").trim()),time:fData.some(s=>timeToMinutes(s&&s.start)!=null)};
   const joLiveRoute=typeof window!=="undefined"&&/[#&]jolive/.test(window.location.hash);
   const saveJoToSheet=()=>{const picks=[];Object.keys(joByLane).forEach(lane=>{if(lane==="all")return;joByLane[lane].forEach(s=>picks.push({lane,name:s.name,venue:s.venue,start:s.start,end:s.end,price:s.price,link:s.link||"",date:s.date||""}));});if(APPS_SCRIPT_URL){try{fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"jopicks",picks})});}catch{}}window.alert(JOPICKS_CSV_URL?("Saved! Your live, always-current link is:\n\n"+window.location.origin+window.location.pathname+"#jolive"):"Saved to the JoPicks tab of your sheet. To turn on the shareable live link, publish that tab as a CSV and add its URL (see the build notes).");};
   const submitFeedback=()=>{const t=feedbackText.trim();if(!t)return;if(APPS_SCRIPT_URL){try{fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"feedback",text:t})});}catch{}}setFeedbackSent(true);setFeedbackText("");};
@@ -314,21 +342,26 @@ Use empty string "" for any field you cannot find.`}]})});
 
   const gc=(org)=>OC[org]||{bg:"#64748B",glow:"rgba(100,116,139,0.3)"};
 
+  const setLayout=v=>{setPropLayout(v);try{localStorage.setItem("fringe-proposal-layout",v);}catch(e){}};
+  const layoutToggle=(<div style={{display:"inline-flex",borderRadius:8,border:`1px solid ${CARD_BORDER}`,overflow:"hidden",flexShrink:0}}><button title="Stack vertically" onClick={()=>setLayout("vertical")} style={{padding:"5px 8px",border:"none",cursor:"pointer",display:"flex",alignItems:"center",background:propLayout==="vertical"?ACCENT:"transparent",color:propLayout==="vertical"?"#fff":TXT2}}><RowsIcon/></button><button title="Side by side" onClick={()=>setLayout("horizontal")} style={{padding:"5px 8px",border:"none",cursor:"pointer",display:"flex",alignItems:"center",background:propLayout==="horizontal"?ACCENT:"transparent",color:propLayout==="horizontal"?"#fff":TXT2}}><ColsIcon/></button></div>);
   if(shared&&shared.length){const multi=shared.length>1;return(
-    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:640,margin:"0 auto",color:TXT,padding:"0 4px 40px",background:BG,minHeight:"100vh"}}>
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:multi&&propLayout==="horizontal"?1360:640,margin:"0 auto",color:TXT,padding:"0 4px 40px",background:BG,minHeight:"100vh"}}>
       <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
         <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
         <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>{multi?(shared.length+" options for you"):(shared[0].title||"Proposed day")}</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared plan · read-only{multi?" · pick your favourite":""}</div>
+        {multi&&<div style={{marginTop:12}}>{layoutToggle}</div>}
       </div>
+      <div style={multi&&propLayout==="horizontal"?{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))",gap:16,alignItems:"start",padding:"0 20px"}:{}}>
       {shared.map((prop,i)=>(
-        <div key={i} style={{padding:"0 12px",marginBottom:multi?30:0}}>
+        <div key={i} style={{padding:propLayout==="horizontal"&&multi?0:"0 12px",marginBottom:propLayout==="horizontal"&&multi?0:(multi?30:0)}}>
           {multi&&<h2 style={{fontSize:18,fontWeight:800,color:TXT,margin:"8px 4px 6px"}}>{prop.title||("Option "+(i+1))}{prop.date?<span style={{fontSize:13,fontWeight:600,color:TXT3}}>{"  "+(()=>{const d=new Date(prop.date+"T12:00:00");return isNaN(d.getTime())?"":`${DAYS_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;})()}</span>:null}</h2>}
           {prop.comment&&<div style={{fontSize:14,color:TXT2,lineHeight:1.5,background:"rgba(168,85,247,0.1)",border:"1px solid rgba(168,85,247,0.25)",borderRadius:12,padding:"10px 14px",margin:"4px 4px 12px"}}>💬 {prop.comment}</div>}
           <ErrorBoundary><ProposalDay date={prop.date} shows={prop.shows||[]}/></ErrorBoundary>
         </div>
       ))}
+      </div>
       <div style={{textAlign:"center",marginTop:26,padding:"0 12px"}}>
         <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
       </div>
@@ -342,15 +375,51 @@ Use empty string "" for any field you cannot find.`}]})});
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Jo's picks</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared list · read-only</div>
       </div>
-      {JO_LANES.filter(l=>l.id!=="all"&&(sharedJo[l.id]||[]).length>0).map(l=>(
-        <div key={l.id} style={{marginBottom:20}}>
-          <div style={{fontSize:15,fontWeight:800,color:TXT,padding:"0 6px 8px"}}>{l.name} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({(sharedJo[l.id]||[]).length})</span></div>
+      {Object.keys(sharedJo).filter(k=>(sharedJo[k]||[]).length>0).map(k=>(
+        <div key={k} style={{marginBottom:20}}>
+          <div style={{fontSize:15,fontWeight:800,color:TXT,padding:"0 6px 8px"}}>{k} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({(sharedJo[k]||[]).length})</span></div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {(sharedJo[l.id]||[]).slice().sort(joSort).map((s,i)=>(<JoCard key={i} show={s} readOnly/>))}
+            {(sharedJo[k]||[]).slice().sort(joSort).map((s,i)=>(<JoCard key={i} show={s} readOnly/>))}
           </div>
         </div>
       ))}
       <div style={{textAlign:"center",marginTop:24}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
+      </div>
+    </div>
+  );}
+  if(sharedBookings&&sharedBookings.length){const byD={};sharedBookings.forEach(s=>{(byD[s.date||"zzz"]=byD[s.date||"zzz"]||[]).push(s);});const dts=Object.keys(byD).sort();const fmtD=d=>{if(d==="zzz")return "Date TBC";const x=new Date(d+"T12:00:00");return isNaN(x.getTime())?d:`${DAYS_FULL[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]}`;};const withDates=sharedBookings.filter(s=>s.date);return(
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:640,margin:"0 auto",color:TXT,padding:"0 8px 50px",background:BG,minHeight:"100vh"}}>
+      <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
+        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
+        <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
+        <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Booked shows 🎫</h1>
+        <div style={{fontSize:12,color:TXT3,marginTop:4}}>{sharedBookings.length} booking{sharedBookings.length!==1?"s":""} shared with you · read-only</div>
+        {withDates.length>0&&<button onClick={()=>downloadShowsICS(withDates)} style={{marginTop:12,padding:"10px 18px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer"}}>📅 Download all calendar entries (.ics)</button>}
+      </div>
+      {dts.map(d=>(
+        <div key={d} style={{marginBottom:22,padding:"0 6px"}}>
+          <div style={{fontSize:16,fontWeight:900,color:TXT,margin:"0 4px 10px"}}>{fmtD(d)}</div>
+          {byD[d].sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0)).map((s,i)=>(
+            <div key={i} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:"14px 16px",marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
+                <div style={{minWidth:0}}>
+                  {s.organiser&&<div style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:7,marginBottom:6,background:gc(s.organiser).bg,color:"#fff"}}>{s.organiser}</div>}
+                  <div style={{fontSize:16,fontWeight:800,color:TXT,lineHeight:1.25}}>{s.name}</div>
+                  <div style={{fontSize:13,color:TXT2,marginTop:3}}>{s.venue}</div>
+                  <div style={{fontSize:13,color:TXT2,marginTop:5}}>🕐 {s.start?formatTime(s.start):"TBC"}{s.end?` – ${formatTime(s.end)}`:""}{s.duration?` · ${s.duration}`:""}{s.price?` · ${s.price}`:""}</div>
+                  {(s.fullAddress||s.address)&&<div style={{fontSize:12,color:TXT3,marginTop:3}}>📍 {s.fullAddress||s.address}</div>}
+                </div>
+                <div style={{display:"flex",gap:6,flexShrink:0}}>
+                  {s.link&&<a href={s.link} target="_blank" rel="noopener noreferrer" aria-label={"View "+s.name+" listing (opens in a new tab)"} style={{padding:"8px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,color:TXT2,fontSize:12,fontWeight:700,textDecoration:"none"}}>Listing ↗</a>}
+                  {s.date&&<button onClick={()=>downloadShowICS(s)} style={{padding:"8px 12px",borderRadius:10,border:"none",background:"rgba(52,211,153,0.2)",color:"#34D399",fontSize:12,fontWeight:800,cursor:"pointer"}}>📅 Calendar</button>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ))}
+      <div style={{textAlign:"center",marginTop:20}}>
         <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
       </div>
     </div>
@@ -365,11 +434,11 @@ Use empty string "" for any field you cannot find.`}]})});
       </div>
       {joLive==="loading"&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>Loading Jo's latest picks…</div>}
       {joLive===null&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 16px",lineHeight:1.5}}>This live link isn't switched on yet.</div>}
-      {joLive&&typeof joLive==="object"&&JO_LANES.filter(l=>l.id!=="all"&&(joLive[l.id]||[]).length>0).map(l=>(
-        <div key={l.id} style={{marginBottom:20}}>
-          <div style={{fontSize:15,fontWeight:800,color:TXT,padding:"0 6px 8px"}}>{l.name} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({(joLive[l.id]||[]).length})</span></div>
+      {joLive&&typeof joLive==="object"&&Object.keys(joLive).filter(k=>(joLive[k]||[]).length>0).map(k=>(
+        <div key={k} style={{marginBottom:20}}>
+          <div style={{fontSize:15,fontWeight:800,color:TXT,padding:"0 6px 8px"}}>{k} <span style={{color:TXT3,fontWeight:600,fontSize:13}}>({(joLive[k]||[]).length})</span></div>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {(joLive[l.id]||[]).slice().sort(joSort).map((s,i)=>(<JoCard key={i} show={s} readOnly/>))}
+            {(joLive[k]||[]).slice().sort(joSort).map((s,i)=>(<JoCard key={i} show={s} readOnly/>))}
           </div>
         </div>
       ))}
@@ -379,11 +448,18 @@ Use empty string "" for any field you cannot find.`}]})});
     </div>
   );}
   return(
-    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:960,margin:"0 auto",color:TXT,padding:"0 4px",background:BG,minHeight:"100vh"}}>
+    <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:960,margin:"0 auto",color:TXT,padding:isMobile?"0 4px 88px":"0 4px",background:BG,minHeight:"100vh"}}>
+      <style>{"select,option{color:#F1F0F7}option{background:#151528;color:#F1F0F7}"}</style>
 
       {/* HEADER */}
       <div style={{position:"sticky",top:0,zIndex:50,background:BG}}>
-        {scrolled?(
+        {isMobile?(
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
+            <div onClick={refreshData} title="Tap to refresh" style={{fontSize:10,fontWeight:700,color:dataSource==="live"?"#34D399":TXT3,display:"flex",alignItems:"center",gap:4,minWidth:46}}><span style={{width:6,height:6,borderRadius:3,background:dataSource==="live"?"#34D399":"#FB923C",display:"inline-block"}}/>{dataSource==="live"?"Live":"Saved"}</div>
+            <span style={{fontSize:18,fontWeight:900,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Edinburgh Fringe</span>
+            <div onClick={()=>{try{navigator.clipboard.writeText(window.location.href);}catch{}window.alert("Link to this view copied — paste to share it.");}} title="Copy link to this view" style={{fontSize:11,fontWeight:700,color:"#93C5FD",cursor:"pointer",minWidth:46,textAlign:"right"}}>🔗 Link</div>
+          </div>
+        ):scrolled?(
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
             <span style={{fontSize:16,fontWeight:800,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Edinburgh Fringe</span>
             {view!=="proposal"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"flex",alignItems:"center",gap:6}}><FilterIcon/> Filter view {showFilterMenu?"▲":"▼"}</button>}
@@ -419,6 +495,7 @@ Use empty string "" for any field you cannot find.`}]})});
                   <TabBtn active={view==="jospicks"} onClick={()=>setView("jospicks")}>Jo's Picks</TabBtn>
                   <TabBtn active={view==="proposal"} onClick={()=>setView("proposal")}>Proposal</TabBtn>
                   <TabBtn active={view==="funfacts"} onClick={()=>setView("funfacts")}>Fun Facts</TabBtn>
+                  <button onClick={()=>setHelpOpen(true)} title="Help" style={{background:"none",border:"none",color:TXT2,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5,fontSize:14,fontWeight:700,padding:"6px 8px"}}><HelpIcon/> Help</button>
                 </>)}
                 {!isMobile&&<span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 12px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,whiteSpace:"nowrap"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>}
                 {view!=="proposal"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>}
@@ -427,19 +504,46 @@ Use empty string "" for any field you cannot find.`}]})});
           </>
         )}
         {showFilterMenu&&view!=="proposal"&&(
-          <div style={{padding:"4px 8px 12px",background:BG}}>
+          <div style={isMobile?{position:"fixed",left:0,right:0,bottom:66,zIndex:69,background:BG,borderTop:`1px solid ${CARD_BORDER}`,padding:"12px 8px 14px",maxHeight:"56vh",overflowY:"auto",boxShadow:"0 -8px 30px rgba(0,0,0,0.55)"}:{padding:"4px 8px 12px",background:BG}}>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
               {view!=="funfacts"&&<input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:220,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)"}}/>}
-              <MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>
-              {availableGenres.length>0&&<MultiDrop open={openDrop==="genre"} onToggle={()=>setOpenDrop(openDrop==="genre"?null:"genre")} label="Genre" selected={genreFilter} onSelect={toggleGenre} onClear={()=>setGenreFilter([])} options={availableGenres.map(gn=>({value:gn,label:gn}))}/>}
-              {people.length>0&&view!=="recs"&&(view!=="wishlist"||wishlist.some(s=>(s.attendees||"").trim()))&&(
+              {view!=="funfacts"&&fHas.org&&<MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>}
+              {view!=="funfacts"&&fHas.genre&&availableGenres.length>0&&<MultiDrop open={openDrop==="genre"} onToggle={()=>setOpenDrop(openDrop==="genre"?null:"genre")} label="Genre" selected={genreFilter} onSelect={toggleGenre} onClear={()=>setGenreFilter([])} options={availableGenres.map(gn=>({value:gn,label:gn}))}/>}
+              {people.length>0&&fHas.people&&(
                 <MultiDrop open={openDrop==="people"} onToggle={()=>setOpenDrop(openDrop==="people"?null:"people")} label="People" icon="👥" selected={peopleFilter} onSelect={togglePerson} onClear={()=>setPeopleFilter([])} options={people.map(nm=>({value:nm,label:nm}))}/>
               )}
-              <MultiDrop open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>
+              {view!=="funfacts"&&fHas.time&&<MultiDrop open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>}
             </div>
           </div>
         )}
       </div>
+
+      {isMobile&&view!=="proposal"&&(()=>{const sz=48;const def={x:(typeof window!=="undefined"?window.innerWidth:400)-sz-12,y:(typeof window!=="undefined"?window.innerHeight:800)-sz-84};const pos=fabPos||def;return(
+        <button
+          onPointerDown={e=>{try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}fabDrag.current={sx:e.clientX,sy:e.clientY,ox:pos.x,oy:pos.y,moved:false};}}
+          onPointerMove={e=>{const d=fabDrag.current;if(!d)return;const dx=e.clientX-d.sx,dy=e.clientY-d.sy;if(Math.abs(dx)+Math.abs(dy)>6)d.moved=true;if(d.moved)setFabPos({x:Math.max(4,Math.min(window.innerWidth-sz-4,d.ox+dx)),y:Math.max(4,Math.min(window.innerHeight-sz-4,d.oy+dy))});}}
+          onPointerUp={()=>{const d=fabDrag.current;fabDrag.current=null;if(d&&!d.moved)setShowFilterMenu(v=>!v);}}
+          aria-label="Filter view (drag to move)" title="Filter view (drag to move)"
+          style={{position:"fixed",left:pos.x,top:pos.y,zIndex:72,width:sz,height:sz,borderRadius:24,border:"none",background:showFilterMenu?TXT:"rgba(255,255,255,0.92)",color:BG,display:"flex",alignItems:"center",justifyContent:"center",boxShadow:"0 6px 20px rgba(0,0,0,0.5)",cursor:"grab",touchAction:"none"}}>
+          <FilterIcon/>
+        </button>);})()}
+      {isMobile&&(
+        <div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:70,background:"#151528",borderTop:`1px solid ${CARD_BORDER}`,display:"flex",gap:8,alignItems:"center",padding:"8px 10px calc(8px + env(safe-area-inset-bottom))"}}>
+          <div role="navigation" aria-label="Sections" style={{flex:1,display:"flex",gap:4,overflowX:"auto"}}>
+            {[["calendar","🗓","Calendar"],["map","🗺️","Map"],["list","🎫","Bookings"],["wishlist","💜","Current Wishlist"],["recs","✨","Suggestions"],["jospicks","⭐","Jo's Picks"],["proposal","📋","Proposal"],["funfacts","🎉","Fun Facts"]].map(([id,ic,lbl])=>(
+              <button key={id} onClick={()=>setView(id)} aria-label={lbl} title={lbl} style={{flex:"0 0 auto",width:42,height:42,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:11,border:`1px solid ${view===id?"#a855f7":CARD_BORDER}`,cursor:"pointer",fontSize:20,lineHeight:1,background:view===id?"rgba(168,85,247,0.25)":"transparent"}}>{ic}</button>
+            ))}
+          </div>
+          <button onClick={()=>setHelpOpen(true)} title="Help" style={{padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.1)",color:TXT,cursor:"pointer",display:"flex",alignItems:"center",flexShrink:0}}><HelpIcon/></button>
+        </div>
+      )}
+      {view==="list"&&shareMode&&(
+        <div style={{position:"fixed",left:0,right:0,bottom:isMobile?"calc(64px + env(safe-area-inset-bottom))":0,zIndex:71,background:"#1b1b30",borderTop:`1px solid ${CARD_BORDER}`,display:"flex",gap:10,alignItems:"center",justifyContent:"center",padding:"10px 12px",flexWrap:"wrap"}}>
+          <span style={{fontSize:13,fontWeight:800,color:TXT}}>{shareSel.size} selected</span>
+          <button onClick={copyBookingsLink} disabled={!shareSel.size} style={{padding:"9px 16px",borderRadius:12,border:"none",background:shareSel.size?ACCENT:"rgba(255,255,255,0.12)",color:"#fff",fontSize:13,fontWeight:800,cursor:shareSel.size?"pointer":"default"}}>🔗 Copy share link</button>
+          <button onClick={()=>setShareSel(new Set(allShows.filter(s=>s.booked===1).map(s=>reviewKey(s))))} style={{padding:"9px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>Select all</button>
+        </div>
+      )}
 
       {/* CALENDAR */}
       {view==="calendar"&&(
@@ -465,7 +569,7 @@ Use empty string "" for any field you cannot find.`}]})});
               </div>
             )}
           </div>
-          <div ref={gridRef} style={{overflow:"auto",maxHeight:"calc(100vh - 120px)",WebkitOverflowScrolling:"touch",position:"relative"}}>
+          <div ref={gridRef} style={{overflow:"auto",maxHeight:isMobile?"calc(100vh - 215px)":"calc(100vh - 120px)",WebkitOverflowScrolling:"touch",position:"relative"}}>
             <div style={{minWidth:Math.max(320,48+weekDates.length*78),position:"relative"}}>
               <div style={{display:"grid",gridTemplateColumns:`48px repeat(${weekDates.length}, 1fr)`,borderBottom:`1px solid ${CARD_BORDER}`,position:"sticky",top:0,background:BG,zIndex:20}}>
                 <div style={{position:"sticky",left:0,zIndex:21,background:BG}}/>
@@ -493,7 +597,6 @@ Use empty string "" for any field you cannot find.`}]})});
                         <div style={{fontWeight:700,lineHeight:1.2,fontSize:14}}>{show.name}</div>
                         <div style={{opacity:0.9,marginTop:2,fontSize:12}}>{show.venue.replace("Assembly ","").replace("Gilded Balloon ","GB ").replace("Underbelly ","UB ").replace("Pleasance ","")}</div>
                         <div style={{opacity:0.9,marginTop:2,fontSize:12,fontWeight:600}}>{formatTime(show.start)}</div>
-                        <GenrePills show={show} dark/>
                       </div>);})}
                   </div>);})}
               </div>
@@ -505,7 +608,13 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* VIEW ALL */}
       {view==="list"&&(
         <div style={{padding:"8px 0"}}>
-          {bookingsDates.map(date=>{const d=new Date(date+"T12:00:00");const dayShows=bookingsByDate[date]||[];if(!dayShows.length)return null;
+          <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center",padding:"0 12px 12px",flexWrap:"wrap"}}>
+            <span style={{fontSize:13,color:TXT2,fontWeight:700}}>Show one day:</span>
+            <input type="date" value={bookingsDay} onChange={e=>setBookingsDay(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+            {bookingsDay&&<button onClick={()=>setBookingsDay("")} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>All days</button>}
+            <button onClick={()=>{setShareMode(v=>!v);setShareSel(new Set());}} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${shareMode?"#a855f7":CARD_BORDER}`,background:shareMode?"rgba(168,85,247,0.2)":"transparent",color:shareMode?"#C084FC":TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>{shareMode?"✕ Cancel sharing":"📤 Share bookings"}</button>
+          </div>
+          {bookingsDates.filter(dt=>!bookingsDay||dt===bookingsDay).map(date=>{const d=new Date(date+"T12:00:00");const dayShows=bookingsByDate[date]||[];if(!dayShows.length)return null;
             const timeSlots=[
               {label:"Morning",emoji:"🌅",filter:s=>{const m=timeToMinutes(s.start);return m!==null&&m<720;}},
               {label:"Afternoon",emoji:"☀️",filter:s=>{const m=timeToMinutes(s.start);return m!==null&&m>=720&&m<1020;}},
@@ -527,7 +636,7 @@ Use empty string "" for any field you cannot find.`}]})});
                     <div style={{flex:1,height:1,background:CARD_BORDER,marginLeft:4}}/>
                   </div>
                   <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                    {slotShows.map((show,i)=>{const di=dayShows.indexOf(show);const prev=di>0?dayShows[di-1]:null;let gap=null;if(prev){const pe=timeToMinutes(prev.end)!=null?timeToMinutes(prev.end):timeToMinutes(prev.start);const ss=timeToMinutes(show.start);if(pe!=null&&ss!=null)gap=ss-pe;}return(<div key={i}>{gap!=null&&<div style={{textAlign:"center",margin:"1px 0 4px"}}><span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:10,background:gap<0?"rgba(239,68,68,0.15)":"rgba(52,211,153,0.15)",color:gap<0?"#EF4444":"#34D399"}}>{gap<0?`overlaps by ${-gap} min`:`${fmtGap(gap)} between shows`}</span></div>}<ShowCard show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)}/></div>);})}
+                    {slotShows.map((show,i)=>{const di=dayShows.indexOf(show);const prev=di>0?dayShows[di-1]:null;let gap=null;if(prev){const pe=timeToMinutes(prev.end)!=null?timeToMinutes(prev.end):timeToMinutes(prev.start);const ss=timeToMinutes(show.start);if(pe!=null&&ss!=null)gap=ss-pe;}return(<div key={i}>{gap!=null&&<div style={{textAlign:"center",margin:"1px 0 4px"}}><span style={{fontSize:11,fontWeight:700,padding:"2px 10px",borderRadius:10,background:gap<0?"rgba(239,68,68,0.15)":"rgba(52,211,153,0.15)",color:gap<0?"#EF4444":"#34D399"}}>{gap<0?`overlaps by ${-gap} min`:`${fmtGap(gap)} between shows`}</span></div>}<div style={{display:"flex",gap:8,alignItems:"stretch"}}>{shareMode&&show.booked===1&&<label style={{display:"flex",alignItems:"center",paddingLeft:6}}><input type="checkbox" checked={shareSel.has(reviewKey(show))} onChange={()=>toggleShareSel(show)} aria-label={"Select "+show.name+" to share"} style={{width:22,height:22,accentColor:"#a855f7",cursor:"pointer"}}/></label>}<div style={{flex:1,minWidth:0}}><ShowCard show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)}/></div></div></div>);})}
                   </div>
                 </div>);})}
             </div>);})}
@@ -547,8 +656,13 @@ Use empty string "" for any field you cannot find.`}]})});
                 <option value="duration">Duration</option>
               </select>
             </label>
+            {!isMobile&&<label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:TXT2,fontWeight:600}}>Cards across
+              <select value={wishCols} onChange={e=>setWishCols(Number(e.target.value))} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
+                <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option>
+              </select>
+            </label>}
           </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          <div style={{display:isMobile?"flex":"grid",flexDirection:"column",gridTemplateColumns:isMobile?undefined:`repeat(${wishCols},minmax(0,1fr))`,gap:isMobile?6:12,alignItems:"start"}}>
             {filteredWishlist.map((show,i)=><ShowCard key={i} show={show} onClick={()=>setSelectedShow(show)} review={reviews[reviewKey(show)]} onRate={v=>setReview(show,v)} tags={tagMap[reviewKey(show)]||[]} onAddTag={t=>addTag(show,t)} onRemoveTag={t=>removeTag(show,t)} wishlist interest={interests[reviewKey(show)]} onInterest={v=>setInterest(show,v)}/>)}
           </div>
         </div>
@@ -616,33 +730,45 @@ Use empty string "" for any field you cannot find.`}]})});
 
       {/* SHOW DETAIL MODAL */}
       {view==="proposal"&&(
-        <div style={{padding:"12px 12px 40px",maxWidth:640,margin:"0 auto"}}>
+        <div style={{padding:propLayout==="horizontal"?"12px 20px 40px":"12px 12px 40px",maxWidth:propLayout==="horizontal"?1360:640,margin:"0 auto"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14,gap:8}}>
             <p style={{fontSize:13,color:TXT2,margin:0}}>Build a day, check it fits, then share it.</p>
-            <div style={{display:"flex",gap:8,flexShrink:0,flexWrap:"wrap"}}>{proposals.length>0&&<button onClick={shareAllProposals} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer"}}>Share all in one link</button>}<button onClick={newProposal} style={{padding:"8px 14px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New day</button></div>
+            <div style={{display:"flex",gap:8,flexShrink:0,flexWrap:"wrap",alignItems:"center"}}>{proposals.length>1&&layoutToggle}{proposals.length>0&&<button onClick={shareAllProposals} title="One link with every option" style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><ShareLinkIcon/> Share plan</button>}<button onClick={newProposal} style={{padding:"8px 14px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:13,fontWeight:700,cursor:"pointer"}}>+ New day</button></div>
           </div>
           {proposals.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>No proposed days yet. Tap "+ New day" to start one.</div>}
+          <div style={propLayout==="horizontal"?{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))",gap:16,alignItems:"start"}:{}}>
           {proposals.map(prop=>(
-            <div key={prop.id} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:16,marginBottom:20}}>
-              <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap",alignItems:"center"}}>
+            <div key={prop.id} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:16,marginBottom:propLayout==="horizontal"?0:20}}>
+              <div style={{display:"flex",gap:8,marginBottom:collapsedProps[prop.id]?0:12,flexWrap:"wrap",alignItems:"center"}}>
+                <button onClick={()=>toggleCollapse(prop.id)} title={collapsedProps[prop.id]?"Expand":"Collapse"} style={{padding:"6px",borderRadius:8,border:"none",background:"transparent",color:TXT2,cursor:"pointer",display:"flex",alignItems:"center",flexShrink:0}}><ChevronIcon open={!collapsedProps[prop.id]}/></button>
                 <input value={prop.title} onChange={e=>updateProposal(prop.id,{title:e.target.value})} placeholder="Title" style={{flex:1,minWidth:120,padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,outline:"none"}}/>
-                <input type="date" value={prop.date} onChange={e=>updateProposal(prop.id,{date:e.target.value})} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
-                <button onClick={()=>shareProposal(prop)} style={{padding:"7px 12px",borderRadius:10,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer"}}>Share</button>
+                <div style={{position:"relative"}}>
+                  <button onClick={()=>setDateOpenId(dateOpenId===prop.id?null:prop.id)} title="Set a date" style={{padding:"7px 9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:prop.date?TXT:TXT3,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><CalIcon/>{prop.date?(()=>{const d=new Date(prop.date+"T12:00:00");return isNaN(d.getTime())?prop.date:` ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():""}</button>
+                  {dateOpenId===prop.id&&<div style={{position:"absolute",top:"100%",left:0,zIndex:40,marginTop:4,background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:10,boxShadow:"0 8px 24px rgba(0,0,0,0.5)",minWidth:210}}>
+                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(prop.date||"")?prop.date:""} onChange={e=>{updateProposal(prop.id,{date:e.target.value});setDateOpenId(null);}} style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                    <div style={{fontSize:11,color:TXT3,margin:"8px 0 4px"}}>or type your own:</div>
+                    <input type="text" value={prop.date||""} onChange={e=>updateProposal(prop.id,{date:e.target.value})} placeholder="e.g. Sat 15 Aug" style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none"}}/>
+                  </div>}
+                </div>
+                <button onClick={()=>shareProposal(prop)} title="Share just this option" style={{padding:"7px 12px",borderRadius:10,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><ShareThisIcon/> Share this</button>
                 <button onClick={()=>deleteProposal(prop.id)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:700,cursor:"pointer"}}>✕</button>
               </div>
+              {!collapsedProps[prop.id]&&<>
               <textarea value={prop.comment||""} onChange={e=>updateProposal(prop.id,{comment:e.target.value})} placeholder="Why you think they'll like it (optional)..." rows={2} style={{width:"100%",boxSizing:"border-box",marginBottom:12,padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
               <ErrorBoundary><ProposalDay date={prop.date} shows={dayShowsFor(prop)}/></ErrorBoundary>
               {(prop.shows||[]).length>0&&<div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>{(prop.shows||[]).map((s,i)=>(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(168,85,247,0.15)",color:"#C084FC",padding:"3px 9px",borderRadius:8,fontSize:12,fontWeight:600}}>{s.name}<span onClick={()=>removeFromProposal(prop.id,i)} style={{cursor:"pointer",opacity:0.8}}>✕</span></span>))}</div>}
               <div style={{marginTop:14}}>
-                <button onClick={()=>setAddOpenId(addOpenId===prop.id?null:prop.id)} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer"}}><PlusIcon/> Add a show</button>
-                {addOpenId===prop.id&&<AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked)]} onAdd={s=>addToProposal(prop.id,s)}/>}
+                <button onClick={()=>{const opening=addOpenId!==prop.id;setAddOpenId(opening?prop.id:null);if(opening)loadCatalog();}} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer"}}><PlusIcon/> Add a show</button>
+                {addOpenId===prop.id&&<AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked),...(allCatalog||[])]} catNote={catState==="loading"?"Loading the full Fringe catalogue…":catState==="error"?"Couldn’t load the full catalogue — showing your shows only.":catState==="unconfigured"?"Tip: paste the All-tab CSV link into ALL_CSV_URL (top of the file) to search the full Fringe catalogue here.":allCatalog?("Searching your shows + "+allCatalog.length.toLocaleString()+" catalogue listings"):null} onAdd={s=>addToProposal(prop.id,s)}/>}
               </div>
+              </>}
             </div>
           ))}
+          </div>
         </div>
       )}
 
-      {view==="funfacts"&&(()=>{const f=funFacts;const fmtDate=d=>{if(!d)return "—";const x=new Date(d+"T12:00:00");return `${DAYS_FULL[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]}`;};const cap=w=>w?w.charAt(0).toUpperCase()+w.slice(1):"—";const tiles=[
+      {view==="funfacts"&&(()=>{const f=funFacts;const fmtDate=d=>{if(!d)return "—";const x=new Date(d+"T12:00:00");return `${DAYS_FULL[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]}`;};const cap=w=>w?w.charAt(0).toUpperCase()+w.slice(1):"—";const now=new Date();const past=s=>!!(s&&s.date&&new Date(s.date+"T23:59:59")<now);const tiles=[
         {n:f.booked,l:"shows booked 🎫",cl:"#C084FC",big:true},
         {n:f.days,l:"days with shows booked 📅",cl:"#60A5FA",big:true},
         {n:f.attended,l:"shows attended so far 👀",cl:"#34D399",big:true},
@@ -650,14 +776,14 @@ Use empty string "" for any field you cannot find.`}]})});
         {n:fmtDate(f.topDay),l:`your busiest day, you saw a whopping ${f.topDayN} show${f.topDayN!==1?"s":""} 🔥`,cl:"#F472B6"},
         {n:f.topMate.values.length?f.topMate.values.join(", "):"—",l:f.topMate.values.length>1?"your top festival buddies 🙌":"your top festival buddy 🙌",cl:"#38BDF8"},
         {n:cap(f.topBucket),l:"when you see the most shows 🕐",cl:"#A855F7"},
-        {n:f.mostExp?f.mostExp.price:"—",l:(f.mostExp?("your most expensive show was "+f.mostExp.name):"your most expensive show")+" 💸",cl:"#EF4444"},
-        {n:f.cheapest?(f.cheapest.price||"Free"):"—",l:(f.cheapest?(((!f.cheapest.price||poundsOf(f.cheapest.price)===0)?"you bagged a freebie - well done! - and saw ":"the cheapest show you watched was ")+f.cheapest.name):"your cheapest show")+" 🪙",cl:"#34D399"},
+        {n:f.mostExp?f.mostExp.price:"—",l:(f.mostExp?((past(f.mostExp)?"your most expensive show was ":"your priciest booking so far is ")+f.mostExp.name):"your most expensive show")+" 💸",cl:"#EF4444"},
+        {n:f.cheapest?(f.cheapest.price||"Free"):"—",l:(f.cheapest?(((!f.cheapest.price||poundsOf(f.cheapest.price)===0)?(past(f.cheapest)?"you bagged a freebie - well done! - and saw ":"a freebie you have lined up: "):(past(f.cheapest)?"the cheapest show you watched was ":"your cheapest booking so far is "))+f.cheapest.name):"your cheapest show")+" 🪙",cl:"#34D399"},
         {n:f.totalMin>0?fmtGap(f.totalMin):"—",l:`you spent hours watching Fringe shows — a total of ${(f.totalMin/1440).toFixed(1)} days! ⏳`,cl:"#F472B6"},
         {n:f.tightest!=null?fmtGap(f.tightest):"—",l:"tightest turnaround — glad you made it across North Bridge on time! 🏃",cl:"#FB7185"},
         {n:f.topVenue?(f.topVenue.code||f.topVenue.name||"—"):"—",l:"where you hung out the most 📍",cl:"#22D3EE"},
-        {n:f.earliest?formatTime(f.earliest.start):"—",l:f.earliest?(timeToMinutes(f.earliest.start)<720?"the earliest show time - you early bird! 🐦":"your earliest show time - not one to compromise a long lie! 😴"):"your earliest show",cl:"#FCD34D"},
-        {n:f.latest?formatTime(f.latest.start):"—",l:"your latest show — you night owl! 🦉",cl:"#818CF8"},
-        {n:f.longest?(f.longest.duration||"—"):"—",l:(f.longest?("how long you spent watching "+f.longest.name):"your longest show")+" 🍿",cl:"#34D399"},
+        {n:f.earliest?formatTime(f.earliest.start):"—",l:f.earliest?((past(f.earliest)?"was your earliest start time":"your earliest start time so far")+(timeToMinutes(f.earliest.start)<720?" - you early bird! 🐦":" - not one to compromise a long lie! 😴")):"your earliest show",cl:"#FCD34D"},
+        {n:f.latest?formatTime(f.latest.start):"—",l:(f.latest&&past(f.latest)?"was your latest show":"your latest show so far")+" — you night owl! 🦉",cl:"#818CF8"},
+        {n:f.longest?(f.longest.duration||"—"):"—",l:(f.longest?((past(f.longest)?"how long you spent watching ":"how long you will spend watching ")+f.longest.name):"your longest show")+" 🍿",cl:"#34D399"},
       ];return(
         <div style={{padding:"18px 14px 50px",maxWidth:760,margin:"0 auto"}}>
           <h2 style={{fontSize:32,fontWeight:900,textAlign:"center",margin:"0 0 4px",letterSpacing:"-0.5px",lineHeight:1.15}}><span style={{marginRight:8}}>🎉</span><span style={{background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 2px 12px rgba(168,85,247,0.45))"}}>Here are your 2026 Fringe stats!</span><span style={{marginLeft:8}}>🎉</span></h2>
@@ -686,20 +812,17 @@ Use empty string "" for any field you cannot find.`}]})});
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap"}}>
             <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
               <p style={{fontSize:13,color:TXT2,margin:0}}>Give each show a category, then filter to compare.</p>
-              <MultiDrop open={openDrop==="jolane"} onToggle={()=>setOpenDrop(openDrop==="jolane"?null:"jolane")} label="Category" selected={joLaneFilter} onSelect={toggleJoLane} onClear={()=>setJoLaneFilter([])} options={JO_LANES.map(l=>({value:l.id,label:l.name}))}/>
+              <MultiDrop open={openDrop==="jolane"} onToggle={()=>setOpenDrop(openDrop==="jolane"?null:"jolane")} label="Category" selected={joLaneFilter} onSelect={toggleJoLane} onClear={()=>setJoLaneFilter([])} options={joCats.map(cc=>({value:cc,label:cc}))}/>
             </div>
             <div style={{display:"flex",gap:8,flexShrink:0,flexWrap:"wrap"}}><button onClick={saveJoToSheet} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(52,211,153,0.2)",color:"#34D399",fontSize:13,fontWeight:700,cursor:"pointer"}}>Save to sheet</button><button onClick={shareJoPicks} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer"}}>Share snapshot</button></div>
           </div>
-          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14,flexWrap:"wrap",background:"rgba(255,255,255,0.03)",border:`1px solid ${CARD_BORDER}`,borderRadius:12,padding:"10px 14px"}}>
-            <span style={{fontSize:14,fontWeight:800,color:TXT,whiteSpace:"nowrap"}}>Price: £{joPMin} – £{joPMax==null?joPriceMax:joPMax}</span>
-            <div style={{display:"flex",flexDirection:"column",gap:6,flex:"1 1 220px",maxWidth:360}}>
-              <input type="range" min={0} max={joPriceMax} value={joPMin} onChange={e=>{const v=Number(e.target.value);setJoPMin(Math.min(v,joPMax==null?joPriceMax:joPMax));}} style={{width:"100%",accentColor:"#A855F7"}}/>
-              <input type="range" min={0} max={joPriceMax} value={joPMax==null?joPriceMax:joPMax} onChange={e=>{const v=Number(e.target.value);setJoPMax(v>=joPriceMax?null:Math.max(v,joPMin));}} style={{width:"100%",accentColor:"#A855F7"}}/>
-            </div>
+          <div style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap",maxWidth:"100%",background:"rgba(255,255,255,0.03)",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:"6px 10px"}}>
+            <span style={{fontSize:12,fontWeight:800,color:TXT,whiteSpace:"nowrap"}}>Price £{joPMin}–£{joPMax==null?joPriceMax:joPMax}</span>
+            <input type="range" min={0} max={joPriceMax} value={joPMin} onChange={e=>{const v=Number(e.target.value);setJoPMin(Math.min(v,joPMax==null?joPriceMax:joPMax));}} style={{width:82,accentColor:"#A855F7"}}/><input type="range" min={0} max={joPriceMax} value={joPMax==null?joPriceMax:joPMax} onChange={e=>{const v=Number(e.target.value);setJoPMax(v>=joPriceMax?null:Math.max(v,joPMin));}} style={{width:82,accentColor:"#A855F7"}}/>
             {(joPMin>0||joPMax!=null)&&<button onClick={()=>{setJoPMin(0);setJoPMax(null);}} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:12,fontWeight:700,cursor:"pointer"}}>Reset</button>}
           </div>
           <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))",gridAutoRows:"252px",gap:12}}>
-            {joCards.map(s=>(<JoCard key={reviewKey(s)} show={s} lane={joLanes[reviewKey(s)]||"all"} lanes={JO_LANES} onLane={v=>setJoLane(reviewKey(s),v)} onOpen={()=>setSelectedShow(s)}/>))}
+            {joCards.map(s=>(<JoCard key={reviewKey(s)} show={s} lane={catOf(s)} lanes={joCats} onLane={v=>setJoLane(reviewKey(s),v)} onOpen={()=>setSelectedShow(s)}/>))}
           </div>
           {joCards.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>No shows in this category yet.</div>}
         </div>
@@ -708,9 +831,11 @@ Use empty string "" for any field you cannot find.`}]})});
       {view==="map"&&(
         <div style={{padding:"12px 12px 30px",maxWidth:1000,margin:"0 auto"}}>
           <p style={{fontSize:13,color:TXT2,margin:"0 0 10px"}}>Your booked venues on the map — open <b>Filter</b> to narrow by organiser, genre, time and more.</p>
-          <div ref={mapRef} style={{height:"calc(100vh - 210px)",minHeight:380,borderRadius:14,overflow:"hidden",border:`1px solid ${CARD_BORDER}`,background:"#0e0e1c"}}/>
+          <div ref={mapRef} style={{height:"calc(100vh - 210px)",minHeight:380,borderRadius:14,overflow:"hidden",border:`1px solid ${CARD_BORDER}`,background:"#0e0e1c",position:"relative",zIndex:0,isolation:"isolate"}}/>
         </div>
       )}
+
+      {helpOpen&&<HelpModal rows={help} onClose={()=>setHelpOpen(false)}/>}
 
       {selectedShow&&(
         <div onClick={()=>setSelectedShow(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
@@ -736,6 +861,7 @@ Use empty string "" for any field you cannot find.`}]})});
               </div>}
               <Dt l="Status"><span style={{color:selectedShow.booked?"#34D399":"#FB923C",fontWeight:700}}>{selectedShow.booked?"Booked ✓":"Not booked"}</span>{selectedShow.ltf&&<span style={{marginLeft:8,fontSize:11,background:"rgba(255,186,8,0.15)",color:"#FFBA08",padding:"2px 7px",borderRadius:6,fontWeight:700}}>LoveTheFringe</span>}</Dt>
               {selectedShow.availability&&<Dt l="Availability"><span style={{color:selectedShow.availability==="Sold Out"?"#EF4444":selectedShow.availability==="Limited"?"#FB923C":selectedShow.availability==="Available"?"#34D399":TXT,fontWeight:700}}>{selectedShow.availability}</span></Dt>}
+              {genresOf(selectedShow).length>0&&<div style={{gridColumn:"1 / -1"}}><div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Genre</div><GenrePills show={selectedShow}/></div>}
             </div>
             {selectedShow.booked&&(
               <div style={{marginBottom:16}}>
@@ -777,7 +903,7 @@ Use empty string "" for any field you cannot find.`}]})});
             {selectedShow.notes&&<div style={{fontSize:14,color:TXT2,fontStyle:"italic",marginBottom:12}}>{selectedShow.notes}</div>}
             {selectedShow.address&&(()=>{const pc=extractPostcode(selectedShow.address);return(
               <div style={{fontSize:14,color:TXT2,marginBottom:18}}>📍 {pc?(<>{selectedShow.address.replace(pc,"").replace(/,\s*$/,"")}{", "}<a href={mapsUrl(selectedShow.address)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>):(<a href={mapsUrl(selectedShow.address)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA"}}>{selectedShow.address}</a>)}</div>);})()}
-            {selectedShow.link&&<a href={selectedShow.link} target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"12px 16px",borderRadius:12,background:gc(selectedShow.organiser).bg,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>View on EdFest →</a>}
+            {selectedShow.link&&<a href={selectedShow.link} target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"12px 16px",borderRadius:12,background:gc(selectedShow.organiser).bg,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>View Listing →</a>}
             {selectedShow.date&&selectedShow.start&&(
               <div style={{display:"flex",gap:8,marginTop:10}}>
                 <button onClick={()=>downloadShowICS(selectedShow)} style={{flex:1,padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7}}><AppleIcon/> Add to iCal</button>
@@ -849,9 +975,9 @@ function fmtMin(m){if(m==null)return "—";m=((m%1440)+1440)%1440;const h=Math.f
 function proposalStats(shows){const st=[],en=[];let cost=0;(shows||[]).forEach(s=>{cost+=poundsOf(s.price);const a=timeToMinutes(s.start);if(a!=null){st.push(a);let e=timeToMinutes(s.end);if(e==null)e=a;if(e<a)e+=1440;en.push(e);}});return{startMin:st.length?Math.min(...st):null,endMin:en.length?Math.max(...en):null,cost};}
 const JO_LANES=[{id:"all",name:"All"},{id:"newbies",name:"Must sees for newbies"},{id:"pros",name:"Seasoned Pros"},{id:"wild",name:"Wildcards"},{id:"new",name:"New for this Year"}];
 function joSort(a,b){const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);const na=ta==null?1e9:ta,nb=tb==null?1e9:tb;if(na!==nb)return na-nb;return String(a.name||"").localeCompare(String(b.name||""));}
-function encodeJoPicks(byLane){try{const arr=[];Object.keys(byLane).forEach(lane=>{if(lane==="all")return;byLane[lane].forEach(s=>arr.push([s.name,s.venue,s.start,s.end,s.price,s.link||"",s.date||"",lane]));});return LZString.compressToEncodedURIComponent(JSON.stringify(arr));}catch(e){return "";}}
-function decodeJoPicks(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const arr=JSON.parse(s);if(Array.isArray(arr)){const map={all:[],newbies:[],pros:[],wild:[],new:[]};arr.forEach(a=>{const it={name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],link:a[5]||"",date:a[6]||""};if(map[a[7]])map[a[7]].push(it);});return map;}}}catch(e){}return null;}
-function parseJoCsv(csv){try{const r=Papa.parse(csv,{skipEmptyLines:true});const rows=r.data;const map={all:[],newbies:[],pros:[],wild:[],new:[]};if(rows.length<2)return map;for(let k=1;k<rows.length;k++){const row=rows[k];const lane=(row[0]||"").toString().trim();const it={name:(row[1]||"").toString().trim(),venue:(row[2]||"").toString().trim(),start:(row[3]||"").toString().trim(),end:(row[4]||"").toString().trim(),price:(row[5]||"").toString().trim(),link:(row[6]||"").toString().trim(),date:(row[7]||"").toString().trim()};if(!it.name)continue;if(map[lane])map[lane].push(it);else map.newbies.push(it);}return map;}catch(e){return null;}}
+function encodeJoPicks(byLane){try{const arr=[];Object.keys(byLane).forEach(lane=>{if(!lane||lane==="Uncategorised")return;byLane[lane].forEach(s=>arr.push([s.name,s.venue,s.start,s.end,s.price,s.link||"",s.date||"",lane]));});return LZString.compressToEncodedURIComponent(JSON.stringify(arr));}catch(e){return "";}}
+function decodeJoPicks(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const arr=JSON.parse(s);if(Array.isArray(arr)){const map={};arr.forEach(a=>{const it={name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],link:a[5]||"",date:a[6]||""};const lane=(a[7]||"Uncategorised").toString();(map[lane]=map[lane]||[]).push(it);});return map;}}}catch(e){}return null;}
+function parseJoCsv(csv){try{const r=Papa.parse(csv,{skipEmptyLines:true});const rows=r.data;const map={};if(rows.length<2)return map;for(let k=1;k<rows.length;k++){const row=rows[k];const lane=(row[0]||"").toString().trim()||"Uncategorised";const it={name:(row[1]||"").toString().trim(),venue:(row[2]||"").toString().trim(),start:(row[3]||"").toString().trim(),end:(row[4]||"").toString().trim(),price:(row[5]||"").toString().trim(),link:(row[6]||"").toString().trim(),date:(row[7]||"").toString().trim()};if(!it.name)continue;(map[lane]=map[lane]||[]).push(it);}return map;}catch(e){return null;}}
 function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps}){
   const c=gc2(show.organiser);
   const timeStr=show.start?(formatTime(show.start)+(show.end?(" – "+formatTime(show.end)):"")):"";
@@ -866,13 +992,15 @@ function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps}){
         <GenrePills show={show}/>
       </div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",flexShrink:0,paddingTop:10}}>
-        {show.link&&<a href={show.link} target="_blank" rel="noopener noreferrer" style={btn}>EdFest ↗</a>}
-        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"#151528",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:"dark"}}>{lanes.map(l=>(<option key={l.id} value={l.id}>{l.name}</option>))}</select>}
+        {show.link&&<a href={show.link} target="_blank" rel="noopener noreferrer" style={btn}>View Listing ↗</a>}
+        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"#151528",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:"dark"}}><option value="">Uncategorised</option>{lanes.map(l=>(<option key={l} value={l}>{l}</option>))}</select>}
       </div>
     </div>
   );
 }
 function decProp_(o){return{title:o.t||"",date:o.d||"",comment:o.c||"",shows:(o.s||[]).map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||"",fullAddress:a[9]||""}))};}
+function encodeBookings(shows){try{return LZString.compressToEncodedURIComponent(JSON.stringify({b:(shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.organiser,x.link||"",x.date||"",x.fullAddress||x.address||"",x.duration||""])}));}catch(e){return "";}}
+function decodeBookings(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.b))return o.b.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],organiser:a[5],link:a[6]||"",date:a[7]||"",address:a[8]||"",fullAddress:a[8]||"",duration:a[9]||"",booked:1}));}}catch(e){}return null;}
 function encodeProposals(props){try{return LZString.compressToEncodedURIComponent(JSON.stringify({m:(props||[]).map(p=>({t:p.title||"",d:p.date||"",c:p.comment||"",s:(p.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||""])}))}));}catch(e){return "";}}
 function decodeProposals(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.m))return o.m.map(decProp_);if(o&&Array.isArray(o.s))return [decProp_(o)];if(o&&o.shows)return [o];}}catch(e){}try{const o=JSON.parse(decodeURIComponent(atob(t)));if(o){if(Array.isArray(o.m))return o.m.map(decProp_);if(o.shows)return [o];}}catch(e){}return null;}
 function encodeProposal(o){try{const c={t:o.title||"",d:o.date||"",s:(o.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||""])};return LZString.compressToEncodedURIComponent(JSON.stringify(c));}catch(e){return "";}}
@@ -882,20 +1010,43 @@ class ErrorBoundary extends Component{
   static getDerivedStateFromError(e){return {err:e};}
   render(){if(this.state.err)return <div style={{padding:24,color:TXT,fontFamily:"system-ui,-apple-system,sans-serif",maxWidth:600,margin:"0 auto"}}><div style={{fontWeight:800,fontSize:18,marginBottom:8}}>Something went wrong.</div><div style={{fontSize:13,color:"#F87171",marginBottom:14,wordBreak:"break-word"}}>{String((this.state.err&&this.state.err.message)||this.state.err)}</div><button onClick={()=>{try{location.reload();}catch(e){}}} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"#A855F7",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>Reload</button></div>;return this.props.children;}
 }
-function AddShowList({shows,onAdd}){
+function AddShowList({shows,onAdd,catNote}){
   const [q,setQ]=useState("");
-  const list=[...(shows||[])].filter(s=>s&&s.name).sort((a,b)=>{const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).filter(s=>{const t=q.trim().toLowerCase();return !t||s.name.toLowerCase().includes(t);});
+  const t=q.trim().toLowerCase();
+  const list=(()=>{const base=[...(shows||[])].filter(s=>s&&s.name).sort((a,b)=>{const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).filter(s=>!t||s.name.toLowerCase().includes(t)||(s.venue||"").toLowerCase().includes(t)||(s.artist||"").toLowerCase().includes(t));const seen=new Set();const dd=[];for(const s of base){const k=s.name.toLowerCase()+"|"+((s.venue||"").toLowerCase());if(seen.has(k))continue;seen.add(k);dd.push(s);}return dd;})();
+  const capped=list.slice(0,60);
   return (<div style={{marginTop:8}}>
-    <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search shows by name..." style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:8}}/>
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by show, venue or artist..." aria-label="Search shows to add" style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:6}}/>
+    {catNote&&<div style={{fontSize:11,color:TXT3,margin:"0 2px 8px"}}>{catNote}</div>}
     <div style={{maxHeight:"max(240px, calc(100vh - 320px))",overflowY:"auto",border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
-      {list.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
+      {capped.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
         <span style={{fontSize:13,color:TXT2,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><b style={{color:TXT}}>{s.start?formatTime(s.start):"—"}</b> · {s.name} <span style={{color:TXT3}}>· {s.venue}</span></span>
         <span style={{flexShrink:0,width:26,height:26,borderRadius:8,background:"rgba(168,85,247,0.25)",color:"#C084FC",fontSize:16,fontWeight:800,lineHeight:"26px",textAlign:"center"}}>+</span>
       </div>))}
+      {list.length>capped.length&&<div style={{padding:"8px 10px",fontSize:11,color:TXT3,textAlign:"center"}}>Showing the first 60 of {list.length.toLocaleString()} matches — keep typing to narrow.</div>}
       {list.length===0&&<div style={{padding:"10px",fontSize:12,color:TXT3,textAlign:"center"}}>No matches.</div>}
     </div>
   </div>);
 }
+function HelpIcon(){return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.3 9a2.7 2.7 0 0 1 5.2 1c0 1.9-2.5 2.2-2.5 3.4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>;}
+function HelpModal({rows,onClose}){
+  return (<div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1100,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"30px 12px"}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,maxWidth:600,width:"100%",padding:"22px 22px 26px",position:"relative"}}>
+      <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"none",border:"none",color:TXT2,fontSize:22,cursor:"pointer"}}>✕</button>
+      <div style={{fontSize:20,fontWeight:900,marginBottom:14,color:TXT}}>Help</div>
+      {rows==="loading"&&<div style={{color:TXT2,fontSize:14}}>Loading…</div>}
+      {rows==="error"&&<div style={{color:"#fca5a5",fontSize:14}}>Couldn't load help — make sure a sheet called "Help - me" exists and the spreadsheet is shared as "Anyone with the link can view".</div>}
+      {Array.isArray(rows)&&rows.length===0&&<div style={{color:TXT3,fontSize:14}}>No help content yet.</div>}
+      {Array.isArray(rows)&&rows.map((r,i)=>{const head=(r[0]||"").trim(),body=(r.length>1?r.slice(1).filter(Boolean).join("  "):"").trim();if(!head&&!body)return null;if(head&&body)return <div key={i} style={{marginBottom:14}}><div style={{fontSize:15,fontWeight:800,color:TXT,marginBottom:3}}>{head}</div><div style={{fontSize:14,color:TXT2,lineHeight:1.55,whiteSpace:"pre-wrap"}}>{body}</div></div>;return <div key={i} style={{fontSize:14,color:TXT2,lineHeight:1.55,marginBottom:10,whiteSpace:"pre-wrap"}}>{head||body}</div>;})}
+    </div>
+  </div>);
+}
+function RowsIcon(){return <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="3" y="4" width="18" height="4" rx="1"/><rect x="3" y="10" width="18" height="4" rx="1"/><rect x="3" y="16" width="18" height="4" rx="1"/></svg>;}
+function ColsIcon(){return <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="3" width="4" height="18" rx="1"/><rect x="10" y="3" width="4" height="18" rx="1"/><rect x="16" y="3" width="4" height="18" rx="1"/></svg>;}
+function ShareLinkIcon(){return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"/></svg>;}
+function ShareThisIcon(){return <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="18" cy="5" r="2.5"/><circle cx="6" cy="12" r="2.5"/><circle cx="18" cy="19" r="2.5"/><path d="M8.2 13.3l7.6 4.4M15.8 6.3l-7.6 4.4"/></svg>;}
+function CalIcon({size=16}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>;}
+function ChevronIcon({open}){return <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round" style={{transform:open?"none":"rotate(-90deg)",transition:"transform 0.15s"}}><path d="M6 9l6 6 6-6"/></svg>;}
 function OpenIcon({size=13}){return <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M14 4h6v6"/><path d="M20 4 L10 14"/><path d="M18 13v5a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h5"/></svg>;}
 function fmtGap(m){if(m<60)return m+" min";const h=Math.floor(m/60),mm=m%60;return mm?h+"h "+mm+"m":h+"h";}
 function normDayMin(t){let m=timeToMinutes(t);if(m==null)return null;if(m<360)m+=1440;return m;}
@@ -913,7 +1064,7 @@ function ProposalDay({date,shows}){
   const travels=[];for(let k=1;k<items.length;k++){const a=items[k-1],b=items[k];const gap=b._s-a._e;if(gap<0)continue;const need=requiredGapMin(a,b);const w=walkMinutes(a,b);travels.push({top:(a._e-rangeTop)/60*HOUR,h:Math.max(18,gap/60*HOUR-2),ok:gap>=need,gap,need,w});}
   return (<div>
     {summary}
-    <div style={{display:"flex",background:"rgba(255,255,255,0.02)",borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflow:"hidden"}}>
+    <div style={{display:"flex",background:"rgba(255,255,255,0.02)",borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflowY:"auto",overflowX:"hidden",maxHeight:"min(1290px, calc(100vh - 170px))"}}>
       <div style={{width:46,flexShrink:0,position:"relative",height:gh}}>
         {Array.from({length:endH-startH+1},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR-6,right:6,fontSize:11,color:TXT2,fontWeight:600}}>{formatHour(((startH+i)%24)*60)}</div>))}
       </div>
