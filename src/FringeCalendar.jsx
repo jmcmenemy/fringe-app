@@ -78,12 +78,12 @@ const OC = {
   "PBH's Free Fringe": { bg: "#14B8A6", glow: "rgba(20,184,166,0.3)" },
   "Other":          { bg: "#64748B", glow: "rgba(100,116,139,0.3)" },
 };
-const BG = "#0B0B1A";
-const CARD = "rgba(255,255,255,0.06)";
-const CARD_BORDER = "rgba(255,255,255,0.1)";
-const TXT = "#F1F0F7";
-const TXT2 = "rgba(241,240,247,0.5)";
-const TXT3 = "rgba(241,240,247,0.3)";
+const BG = "var(--bg)";
+const CARD = "var(--card)";
+const CARD_BORDER = "var(--card-border)";
+const TXT = "var(--txt)";
+const TXT2 = "var(--txt2)";
+const TXT3 = "var(--txt3)";
 const ACCENT = "linear-gradient(135deg, #FF4D6A, #A855F7)";
 
 const DAY_NAMES_SHORT = ["Mon","Tue","Wed","Thu","Fri","Sat","Sun"];
@@ -134,6 +134,32 @@ function dateToStr(d){return d.toISOString().slice(0,10);}
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function getWeeks(shows){const m=new Set();shows.filter(s=>s.date).forEach(s=>m.add(dateToStr(getMonday(s.date))));return[...m].sort();}
 function extractPostcode(a){if(!a)return null;const m=a.match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i);return m?m[0]:null;}
+function ThemeToggle({theme,set}){
+  const [open,setOpen]=useState(false);
+  const ib={width:34,height:32,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:15,cursor:"pointer",flexShrink:0};
+  if(!open) return <button onClick={()=>setOpen(true)} aria-label="Change theme" title="Theme" style={ib}>{theme==="light"?"☀️":"🌙"}</button>;
+  return <div style={{display:"inline-flex",borderRadius:8,border:`1px solid ${CARD_BORDER}`,overflow:"hidden",flexShrink:0}}>{["dark","light"].map(id=><button key={id} onClick={()=>{set(id);setOpen(false);}} title={id==="dark"?"Dark":"Light"} style={{padding:"5px 9px",border:"none",cursor:"pointer",fontSize:14,background:theme===id?"#a855f7":"transparent",color:theme===id?"#fff":TXT2}}>{id==="dark"?"🌙":"☀️"}</button>)}</div>;
+}
+function exportAllData(){try{var o={};for(var i=0;i<localStorage.length;i++){var k=localStorage.key(i);if(k&&k.indexOf("fringe")===0)o[k]=localStorage.getItem(k);}return LZString.compressToEncodedURIComponent(JSON.stringify(o));}catch(e){return "";}}
+function importAllData(token){try{var o=JSON.parse(LZString.decompressFromEncodedURIComponent(token));if(!o||typeof o!=="object")return false;Object.keys(o).forEach(function(k){if(k.indexOf("fringe")===0)localStorage.setItem(k,o[k]);});return true;}catch(e){return false;}}
+function SyncModal({onClose}){
+  const [tok,setTok]=useState("");
+  const link=(typeof window!=="undefined"?window.location.origin+window.location.pathname:"")+"#sync="+exportAllData();
+  const copy=()=>{try{navigator.clipboard.writeText(link);}catch(e){}try{window.prompt("Copy this link, then open it on your other device:",link);}catch(e){}};
+  const doImport=()=>{let t=(tok||"").trim();const m=t.match(/[#&]sync=([^&\s]+)/);if(m)t=m[1];if(t&&importAllData(t)){try{window.location.replace(window.location.pathname);}catch(e){}}else{try{window.alert("Couldn\u2019t read that link or code.");}catch(e){}}};
+  const acc={width:"100%",padding:"11px",borderRadius:11,border:"none",background:ACCENT,color:"#fff",fontSize:14,fontWeight:800,cursor:"pointer"};
+  return (<div onClick={onClose} onKeyDown={e=>{if(e.key==="Escape")onClose();}} tabIndex={-1} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1400,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 12px",overflowY:"auto"}}>
+    <div role="dialog" aria-modal="true" aria-label="Copy my data to another device" onClick={e=>e.stopPropagation()} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,maxWidth:460,width:"100%",padding:"20px",position:"relative"}}>
+      <button onClick={onClose} aria-label="Close" style={{position:"absolute",top:12,right:12,background:"none",border:"none",color:TXT2,fontSize:20,cursor:"pointer"}}>✕</button>
+      <div style={{fontSize:18,fontWeight:900,marginBottom:4,color:TXT}}>Copy my data to another device</div>
+      <div style={{fontSize:13,color:TXT2,lineHeight:1.5,marginBottom:16}}>One link moves everything saved on this device — your reviews, tags, Pitch-a-Day proposals and settings. No login needed.</div>
+      <button onClick={copy} style={acc}>⧉ Copy my transfer link</button>
+      <div style={{textAlign:"center",fontSize:12,color:TXT3,margin:"14px 0 8px"}}>— then on the other device —</div>
+      <input value={tok} onChange={e=>setTok(e.target.value)} placeholder="Paste the link or code here" aria-label="Paste transfer link or code" style={{width:"100%",padding:"10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,boxSizing:"border-box"}}/>
+      <button onClick={doImport} style={{width:"100%",marginTop:8,padding:"10px",borderRadius:11,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT,fontSize:14,fontWeight:800,cursor:"pointer"}}>Import & replace this device’s data</button>
+    </div>
+  </div>);
+}
 function mapsUrl(x){if(x&&typeof x==="object"){const la=x.lat,ln=x.lng;if(la!=null&&ln!=null&&!isNaN(la)&&!isNaN(ln))return`https://www.google.com/maps/search/?api=1&query=${la},${ln}`;x=x.fullAddress||x.address||x.venue||"";}return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x||"")}`;}
 function pad2(n){return String(n).padStart(2,"0");}
 function fIcsStamp(dateISO,hm){const[y,mo,da]=dateISO.split("-");const[h,mi]=(hm||"00:00").split(":");return `${y}${mo}${da}T${pad2(h)}${pad2(mi)}00`;}
@@ -143,7 +169,7 @@ function icsForShow(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(
 function csvRows(text){const rows=[];let row=[],cell="",inQ=false;for(let i=0;i<text.length;i++){const ch=text[i];if(inQ){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else inQ=false;}else cell+=ch;}else{if(ch==='"')inQ=true;else if(ch===","){row.push(cell);cell="";}else if(ch==="\n"){row.push(cell);rows.push(row);row=[];cell="";}else if(ch!=="\r")cell+=ch;}}if(cell!==""||row.length){row.push(cell);rows.push(row);}return rows;}
 function normCatTime(t){if(!t)return "";const m=String(t).trim().match(/^(\d{1,2}):(\d{2})/);return m?`${m[1].padStart(2,"0")}:${m[2]}`:"";}
 function normCatDur(d){if(!d)return "";const s=String(d).trim();let m=s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);if(m){const h=parseInt(m[1]),mm=parseInt(m[2]);return h>0?(mm>0?`${h}h${String(mm).padStart(2,"0")}`:`${h}h`):`${mm}m`;}m=s.match(/^(\d+)$/);if(m){const t=parseInt(m[1]);const h=Math.floor(t/60),mm=t%60;return h>0?(mm>0?`${h}h${String(mm).padStart(2,"0")}`:`${h}h`):`${mm}m`;}return s;}
-function parseCatalogCSV(text){const rows=csvRows(text);if(rows.length<2)return[];let hri=-1;for(let i=0;i<Math.min(rows.length,6);i++){if(rows[i].some(cell=>String(cell||"").trim().toLowerCase()==="title")){hri=i;break;}}if(hri<0)return[];const hdr=rows[hri].map(h=>String(h||"").trim().toLowerCase());const ix=names=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k;}return -1;};const iT=ix(["title"]),iV=ix(["venue"]),iVC=ix(["venue code","venue #"]),iW=ix(["website","link"]),iG=ix(["genre"]),iGT=ix(["genre tags"]),iA=ix(["artist"]),iSt=ix(["start time","time start","start"]),iEn=ix(["end time","time end","end"]),iDu=ix(["duration","length"]),iFP=ix(["first performance date","first date","first"]),iLP=ix(["last performance date","last date","last"]);parseCatalogCSV.found={start:iSt>=0,end:iEn>=0,duration:iDu>=0};if(iT<0)return[];const out=[];for(let r=hri+1;r<rows.length;r++){const g=j=>j>=0?String(rows[r][j]||"").trim():"";const name=g(iT);if(!name)continue;const genres=[g(iG),g(iGT)].filter(Boolean).join(", ");const start=normCatTime(g(iSt));let end=normCatTime(g(iEn));const duration=normCatDur(g(iDu));if(!end&&start&&duration){const sm=timeToMinutes(start);const dm=(()=>{const m1=duration.match(/^(\d+)h(?:(\d{1,2}))?$/);if(m1)return parseInt(m1[1])*60+(m1[2]?parseInt(m1[2]):0);const m2=duration.match(/^(\d+)m$/);return m2?parseInt(m2[1]):0;})();if(sm!=null&&dm>0){const em=(sm+dm)%1440;end=`${String(Math.floor(em/60)).padStart(2,"0")}:${String(em%60).padStart(2,"0")}`;}}out.push({name,venue:g(iV),venueCode:g(iVC),link:g(iW),genres,artist:g(iA),start,end,duration,firstDate:g(iFP),lastDate:g(iLP),price:"",organiser:"",address:"",fullAddress:"",booked:0,fromCatalog:true});}return out;}
+function parseCatalogCSV(text){const rows=csvRows(text);if(rows.length<2)return[];let hri=-1;for(let i=0;i<Math.min(rows.length,6);i++){if(rows[i].some(cell=>String(cell||"").trim().toLowerCase()==="title")){hri=i;break;}}if(hri<0)return[];const hdr=rows[hri].map(h=>String(h||"").trim().toLowerCase());const ix=names=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k;}return -1;};const iT=ix(["title"]),iV=ix(["venue"]),iVC=ix(["venue code","venue #"]),iW=ix(["website","link"]),iG=ix(["genre"]),iGT=ix(["genre tags"]),iA=ix(["artist"]),iSt=ix(["start time","time start","start"]),iEn=ix(["end time","time end","end"]),iDu=ix(["duration","length"]),iFP=ix(["first performance date","first date","first"]),iLP=ix(["last performance date","last date","last"]),iSub=ix(["subtitle"]),iDesc=ix(["description"]),iAge=ix(["age category","age"]),iCty=ix(["country"]),iPr=ix(["lowest full price","full price","price"]),iPrC=ix(["lowest concession price","concession price"]),iAddr=ix(["venue address"]),iPc=ix(["venue postcode","postcode"]),iLat=ix(["latitude","lat"]),iLng=ix(["longitude","long","lng"]),iWarn=ix(["warnings","warning"]);parseCatalogCSV.found={start:iSt>=0,end:iEn>=0,duration:iDu>=0};if(iT<0)return[];const out=[];for(let r=hri+1;r<rows.length;r++){const g=j=>j>=0?String(rows[r][j]||"").trim():"";const name=g(iT);if(!name)continue;const genres=[g(iG),g(iGT)].filter(Boolean).join(", ");const start=normCatTime(g(iSt));let end=normCatTime(g(iEn));const duration=normCatDur(g(iDu));if(!end&&start&&duration){const sm=timeToMinutes(start);const dm=(()=>{const m1=duration.match(/^(\d+)h(?:(\d{1,2}))?$/);if(m1)return parseInt(m1[1])*60+(m1[2]?parseInt(m1[2]):0);const m2=duration.match(/^(\d+)m$/);return m2?parseInt(m2[1]):0;})();if(sm!=null&&dm>0){const em=(sm+dm)%1440;end=`${String(Math.floor(em/60)).padStart(2,"0")}:${String(em%60).padStart(2,"0")}`;}}const _addr=g(iAddr),_pc=g(iPc),_fp=g(iPr),_la=parseFloat(g(iLat)),_ln=parseFloat(g(iLng)),_full=[_addr,_pc].filter(Boolean).join(", ");out.push({name,venue:g(iV),venueCode:g(iVC),link:g(iW),genres,genre:g(iG),artist:g(iA),organiser:g(iA)||g(iV)||"Fringe",start,end,duration,firstDate:g(iFP),lastDate:g(iLP),price:(_fp?(/^[\d.]+$/.test(_fp)?("\u00a3"+_fp):_fp):""),priceConc:g(iPrC),address:_full,fullAddress:_full,venuePostcode:_pc,latitude:isNaN(_la)?null:_la,longitude:isNaN(_ln)?null:_ln,lat:isNaN(_la)?null:_la,lng:isNaN(_ln)?null:_ln,age:g(iAge),country:g(iCty),description:g(iDesc),subtitle:g(iSub),warnings:g(iWarn),booked:0,fromCatalog:true});}return out;}
 function fringeKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf("fringe-")===0)out.push(k);}}catch(e){}return out;}
 function migrateData(fromV,toV){/* future key renames go here: read old key, write new, never delete blindly */}
 function downloadBackup(){try{const data={};fringeKeys().forEach(k=>{data[k]=localStorage.getItem(k);});const payload={app:"fringe-personal",version:APP_DATA_VERSION,savedAt:new Date().toISOString(),data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="fringe-planner-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}catch(e){alert("Backup failed: "+(e&&e.message||e));}}
@@ -225,12 +251,17 @@ function FringeCalendarInner(){
   const[showFilterMenu,setShowFilterMenu]=useState(false);
   const[fabPos,setFabPos]=useState(null);const fabDrag=useRef(null);
   const[updateBanner,setUpdateBanner]=useState(false);
+  const[theme,setTheme]=useState(()=>{try{return localStorage.getItem("fringe-theme")||"dark";}catch(e){return "dark";}});
+  const[syncOpen,setSyncOpen]=useState(false);
   useEffect(()=>{try{const k="fringe-data-version";const prev=parseInt(localStorage.getItem(k)||"0",10);if(!prev){localStorage.setItem(k,String(APP_DATA_VERSION));}else if(prev<APP_DATA_VERSION){migrateData(prev,APP_DATA_VERSION);localStorage.setItem(k,String(APP_DATA_VERSION));setUpdateBanner(true);}}catch(e){}},[]);
+  useEffect(()=>{try{document.documentElement.setAttribute("data-theme",theme);localStorage.setItem("fringe-theme",theme);}catch(e){}},[theme]);
+  useEffect(()=>{try{var m=window.location.hash.match(/[#&]sync=([^&]+)/);if(m&&importAllData(m[1])){window.location.replace(window.location.pathname);}}catch(e){}},[]);
   const[shareMode,setShareMode]=useState(false);const[shareSel,setShareSel]=useState(()=>new Set());
   const toggleShareSel=s=>{const k=reviewKey(s);setShareSel(prev=>{const n=new Set(prev);if(n.has(k))n.delete(k);else n.add(k);return n;});};
   const copyBookingsLink=()=>{const sel=allShows.filter(s=>s.booked===1&&shareSel.has(reviewKey(s)));if(!sel.length){window.alert("Tick at least one booked show first.");return;}const token=encodeBookings(sel);const url=`${window.location.origin}${window.location.pathname}#b=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Share link with "+sel.length+" booking"+(sel.length!==1?"s":"")+" copied — send it to a friend:\n\n"+url);};
   const[allCatalog,setAllCatalog]=useState(null);const[catState,setCatState]=useState("idle");
   const loadCatalog=()=>{if(allCatalog||catState==="loading")return;if(!ALL_CSV_URL){setCatState("unconfigured");return;}setCatState("loading");fetch(ALL_CSV_URL).then(r=>{if(!r.ok)throw 0;return r.text();}).then(t=>{const items=parseCatalogCSV(t);setAllCatalog(items);const f=parseCatalogCSV.found||{};setCatState(items.length?((items.some(s=>s.start))?"ready":(f.start?"ready-empty-times":"ready-no-time-cols")):"error");}).catch(()=>setCatState("error"));};
+  useEffect(()=>{if(view==="jospicks")loadCatalog();},[view]);
   const[showFeedback,setShowFeedback]=useState(false);
   const[feedbackText,setFeedbackText]=useState("");
   const[feedbackSent,setFeedbackSent]=useState(false);
@@ -314,7 +345,7 @@ function FringeCalendarInner(){
   const joByLane=useMemo(()=>{const map={};joItems.forEach(s=>{const cc=catOf(s)||"Uncategorised";(map[cc]=map[cc]||[]).push(s);});Object.keys(map).forEach(k=>map[k].sort(joSort));return map;},[joItems,joLanes]);
   const joPriceMax=useMemo(()=>{let m=0;joItems.forEach(s=>{const p=poundsOf(s.price);if(p>m)m=p;});return Math.max(5,Math.ceil(m));},[joItems]);
   const joCards=useMemo(()=>joItems.filter(s=>{if(!inOrg(s))return false;if(!inGenre(s))return false;if(!inTime(s))return false;if(searchQuery.trim()&&!matchesSearch(s,searchQuery))return false;if(joLaneFilter.length&&!joLaneFilter.includes(catOf(s)))return false;const p=poundsOf(s.price);if(p<joPMin)return false;if(joPMax!=null&&p>joPMax)return false;return true;}).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),[joItems,joLanes,joLaneFilter,joPMin,joPMax,orgFilter,genreFilter,timeFilters,searchQuery]);
-  const fData=view==="wishlist"?wishlist:view==="recs"?recommendations:view==="jospicks"?joItems:allShows;
+  const fData=view==="wishlist"?wishlist:view==="recs"?recommendations:view==="jospicks"?(allCatalog||[]):allShows;
   const fHas={org:fData.some(s=>s&&s.organiser),genre:fData.some(s=>genresOf(s).length>0),people:fData.some(s=>((s&&s.attendees)||"").trim()),time:fData.some(s=>timeToMinutes(s&&s.start)!=null)};
   const joLiveRoute=typeof window!=="undefined"&&/[#&]jolive/.test(window.location.hash);
   const saveJoToSheet=()=>{const picks=[];Object.keys(joByLane).forEach(lane=>{if(lane==="all")return;joByLane[lane].forEach(s=>picks.push({lane,name:s.name,venue:s.venue,start:s.start,end:s.end,price:s.price,link:s.link||"",date:s.date||""}));});if(APPS_SCRIPT_URL){try{fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"jopicks",picks})});}catch{}}window.alert(JOPICKS_CSV_URL?("Saved! Your live, always-current link is:\n\n"+window.location.origin+window.location.pathname+"#jolive"):"Saved to the JoPicks tab of your sheet. To turn on the shareable live link, publish that tab as a CSV and add its URL (see the build notes).");};
@@ -359,7 +390,6 @@ Use empty string "" for any field you cannot find.`}]})});
   if(shared&&shared.length){const multi=shared.length>1;return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:multi&&propLayout==="horizontal"?1360:640,margin:"0 auto",color:TXT,padding:"0 4px 40px",background:BG,minHeight:"100vh"}}>
       <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
         <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>{multi?(shared.length+" options for you"):(shared[0].title||"Proposed day")}</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared plan · read-only{multi?" · pick your favourite":""}</div>
@@ -374,15 +404,11 @@ Use empty string "" for any field you cannot find.`}]})});
         </div>
       ))}
       </div>
-      <div style={{textAlign:"center",marginTop:26,padding:"0 12px"}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
-      </div>
     </div>
   );}
   if(sharedJo){return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:760,margin:"0 auto",color:TXT,padding:"0 8px 50px",background:BG,minHeight:"100vh"}}>
       <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
         <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Jo's picks</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Shared list · read-only</div>
@@ -395,15 +421,11 @@ Use empty string "" for any field you cannot find.`}]})});
           </div>
         </div>
       ))}
-      <div style={{textAlign:"center",marginTop:24}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
-      </div>
     </div>
   );}
   if(sharedBookings&&sharedBookings.length){const byD={};sharedBookings.forEach(s=>{(byD[s.date||"zzz"]=byD[s.date||"zzz"]||[]).push(s);});const dts=Object.keys(byD).sort();const fmtD=d=>{if(d==="zzz")return "Date TBC";const x=new Date(d+"T12:00:00");return isNaN(x.getTime())?d:`${DAYS_FULL[x.getDay()]} ${x.getDate()} ${MONTHS[x.getMonth()]}`;};const withDates=sharedBookings.filter(s=>s.date);return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:640,margin:"0 auto",color:TXT,padding:"0 8px 50px",background:BG,minHeight:"100vh"}}>
       <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
         <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Booked shows 🎫</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>{sharedBookings.length} booking{sharedBookings.length!==1?"s":""} shared with you · read-only</div>
@@ -413,7 +435,7 @@ Use empty string "" for any field you cannot find.`}]})});
         <div key={d} style={{marginBottom:22,padding:"0 6px"}}>
           <div style={{fontSize:16,fontWeight:900,color:TXT,margin:"0 4px 10px"}}>{fmtD(d)}</div>
           {byD[d].sort((a,b)=>(timeToMinutes(a.start)||0)-(timeToMinutes(b.start)||0)).map((s,i)=>(
-            <div key={i} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:"14px 16px",marginBottom:10}}>
+            <div key={i} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:"14px 16px",marginBottom:10}}>
               <div style={{display:"flex",justifyContent:"space-between",gap:10,alignItems:"flex-start",flexWrap:"wrap"}}>
                 <div style={{minWidth:0}}>
                   {s.organiser&&<div style={{display:"inline-block",fontSize:11,fontWeight:700,padding:"3px 10px",borderRadius:7,marginBottom:6,background:gc(s.organiser).bg,color:"#fff"}}>{s.organiser}</div>}
@@ -431,15 +453,11 @@ Use empty string "" for any field you cannot find.`}]})});
           ))}
         </div>
       ))}
-      <div style={{textAlign:"center",marginTop:20}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
-      </div>
     </div>
   );}
   if(joLiveRoute){return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:760,margin:"0 auto",color:TXT,padding:"0 8px 50px",background:BG,minHeight:"100vh"}}>
       <div style={{position:"relative",textAlign:"center",padding:"24px 16px 16px",borderBottom:`1px solid ${CARD_BORDER}`,marginBottom:16}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{position:"absolute",left:12,top:16,fontSize:13,fontWeight:700,color:"#C084FC",textDecoration:"none"}}>← Home</a>
         <div style={{fontSize:12,fontWeight:700,letterSpacing:2,textTransform:"uppercase",color:TXT2}}>Edinburgh Fringe</div>
         <h1 style={{fontSize:24,fontWeight:900,margin:"6px 0 0",color:TXT}}>Jo's picks</h1>
         <div style={{fontSize:12,color:TXT3,marginTop:4}}>Live · read-only</div>
@@ -454,14 +472,11 @@ Use empty string "" for any field you cannot find.`}]})});
           </div>
         </div>
       ))}
-      <div style={{textAlign:"center",marginTop:24}}>
-        <a href={typeof window!=="undefined"?window.location.pathname:"/"} style={{display:"inline-block",padding:"12px 22px",borderRadius:12,background:ACCENT,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>Explore the full planner →</a>
-      </div>
     </div>
   );}
   return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:960,margin:"0 auto",color:TXT,padding:isMobile?"0 4px 88px":"0 4px",background:BG,minHeight:"100vh"}}>
-      <style>{"select,option{color:#F1F0F7}option{background:#151528;color:#F1F0F7}"}</style>
+      <style>{":root,[data-theme=dark]{--bg:#0B0B1A;--card:rgba(255,255,255,0.06);--card-border:rgba(255,255,255,0.1);--txt:#F1F0F7;--txt2:rgba(241,240,247,0.5);--txt3:rgba(241,240,247,0.3);--card-solid:#151528}[data-theme=light]{--bg:#F4F4F8;--card:rgba(0,0,0,0.045);--card-border:rgba(0,0,0,0.14);--txt:#1A1A2E;--txt2:rgba(26,26,46,0.62);--txt3:rgba(26,26,46,0.42);--card-solid:#FFFFFF}select,option{color:var(--txt)}option{background:var(--card-solid);color:var(--txt)}"}</style>
       {updateBanner&&<div role="status" style={{background:"rgba(168,85,247,0.14)",border:`1px solid #a855f7`,borderRadius:12,padding:"10px 14px",margin:"10px 8px 0",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",fontSize:13}}>
         <span style={{color:TXT,flex:"1 1 220px"}}>✨ The planner's been updated — your reviews, tags and proposals are safe. Grab a backup just in case.</span>
         <button onClick={downloadBackup} style={{padding:"7px 13px",borderRadius:9,border:"none",background:ACCENT,color:"#fff",fontWeight:800,cursor:"pointer",fontSize:12}}>⬇ Download backup</button>
@@ -474,7 +489,7 @@ Use empty string "" for any field you cannot find.`}]})});
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
             <div onClick={refreshData} title="Tap to refresh" style={{fontSize:10,fontWeight:700,color:dataSource==="live"?"#34D399":TXT3,display:"flex",alignItems:"center",gap:4,minWidth:46}}><span style={{width:6,height:6,borderRadius:3,background:dataSource==="live"?"#34D399":"#FB923C",display:"inline-block"}}/>{dataSource==="live"?"Live":"Saved"}</div>
             <span style={{fontSize:18,fontWeight:900,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Edinburgh Fringe</span>
-            <div onClick={()=>{try{navigator.clipboard.writeText(window.location.href);}catch{}window.alert("Link to this view copied — paste to share it.");}} title="Copy link to this view" style={{fontSize:11,fontWeight:700,color:"#93C5FD",cursor:"pointer",minWidth:46,textAlign:"right"}}>🔗 Link</div>
+            <div style={{display:"flex",gap:6,alignItems:"center",flexShrink:0}}><ThemeToggle theme={theme} set={setTheme}/><button onClick={()=>setSyncOpen(true)} aria-label="Copy my data to another device" title="Copy my data to another device" style={{width:34,height:32,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:15,cursor:"pointer"}}>⧉</button></div>
           </div>
         ):scrolled?(
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
@@ -484,7 +499,7 @@ Use empty string "" for any field you cannot find.`}]})});
         ):(
           <>
             <div style={{position:"relative",textAlign:"center",padding:"28px 16px 20px",background:`linear-gradient(180deg, rgba(168,85,247,0.15) 0%, transparent 100%)`,borderBottom:`1px solid ${CARD_BORDER}`}}>
-              <div onClick={()=>{try{navigator.clipboard.writeText(window.location.href);}catch{}window.alert("Link to this view copied — paste to share it.");}} title="Copy a link to this view" style={{position:"absolute",top:10,left:12,fontSize:11,fontWeight:700,color:"#93C5FD",cursor:"pointer",display:"flex",alignItems:"center",gap:4,letterSpacing:"0.3px"}}>🔗 Copy link</div>
+              <div style={{position:"absolute",top:10,left:12,display:"flex",gap:6,alignItems:"center"}}><ThemeToggle theme={theme} set={setTheme}/><button onClick={()=>setSyncOpen(true)} aria-label="Copy my data to another device" title="Copy my data to another device" style={{width:34,height:32,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:15,cursor:"pointer"}}>⧉</button></div>
               <div onClick={refreshData} title="Tap to refresh" style={{position:"absolute",top:10,right:12,fontSize:11,fontWeight:700,color:dataSource==="live"?"#34D399":TXT3,cursor:"pointer",display:"flex",alignItems:"center",gap:5,letterSpacing:"0.3px"}}>
                 <span style={{width:7,height:7,borderRadius:4,background:dataSource==="live"?"#34D399":"#FB923C",display:"inline-block"}}/>
                 {dataSource==="live"?"Live":"Saved"}{lastUpdated?` · ${lastUpdated.getDate()} ${MONTHS[lastUpdated.getMonth()]} ${pad2(lastUpdated.getHours())}:${pad2(lastUpdated.getMinutes())}`:""}
@@ -499,7 +514,7 @@ Use empty string "" for any field you cannot find.`}]})});
                     <option value="list">Bookings</option>
                     <option value="wishlist">Current Wishlist</option>
                     <option value="recs">Suggestions</option>
-                    <option value="jospicks">Jo's Picks</option>
+                    <option value="jospicks">Browse catalogue</option>
                     <option value="proposal">Proposal</option>
                     <option value="funfacts">Fun Facts</option>
                   </select>
@@ -509,7 +524,7 @@ Use empty string "" for any field you cannot find.`}]})});
                   <TabBtn active={view==="list"} onClick={()=>setView("list")}>Bookings</TabBtn>
                   <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Current Wishlist</TabBtn>
                   <TabBtn active={view==="recs"} onClick={()=>setView("recs")}>Suggestions</TabBtn>
-                  <TabBtn active={view==="jospicks"} onClick={()=>setView("jospicks")}>Jo's Picks</TabBtn>
+                  <TabBtn active={view==="jospicks"} onClick={()=>{setView("jospicks");loadCatalog();}}>Browse catalogue</TabBtn>
                   <TabBtn active={view==="proposal"} onClick={()=>setView("proposal")}>Proposal</TabBtn>
                   <TabBtn active={view==="funfacts"} onClick={()=>setView("funfacts")}>Fun Facts</TabBtn>
                   <button onClick={()=>setHelpOpen(true)} title="Help" style={{background:"none",border:"none",color:TXT2,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5,fontSize:14,fontWeight:700,padding:"6px 8px"}}><HelpIcon/> Help</button>
@@ -545,7 +560,7 @@ Use empty string "" for any field you cannot find.`}]})});
           <FilterIcon/>
         </button>);})()}
       {isMobile&&(
-        <div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:70,background:"#151528",borderTop:`1px solid ${CARD_BORDER}`,display:"flex",gap:8,alignItems:"center",padding:"8px 10px calc(8px + env(safe-area-inset-bottom))"}}>
+        <div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:70,background:"var(--card-solid)",borderTop:`1px solid ${CARD_BORDER}`,display:"flex",gap:8,alignItems:"center",padding:"8px 10px calc(8px + env(safe-area-inset-bottom))"}}>
           <div role="navigation" aria-label="Sections" style={{flex:1,display:"flex",gap:4,overflowX:"auto"}}>
             {[["calendar","🗓","Calendar"],["map","🗺️","Map"],["list","🎫","Bookings"],["wishlist","💜","Current Wishlist"],["recs","✨","Suggestions"],["jospicks","⭐","Jo's Picks"],["proposal","📋","Proposal"],["funfacts","🎉","Fun Facts"]].map(([id,ic,lbl])=>(
               <button key={id} onClick={()=>setView(id)} aria-label={lbl} title={lbl} style={{flex:"0 0 auto",width:42,height:42,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:11,border:`1px solid ${view===id?"#a855f7":CARD_BORDER}`,cursor:"pointer",fontSize:20,lineHeight:1,background:view===id?"rgba(168,85,247,0.25)":"transparent"}}>{ic}</button>
@@ -570,7 +585,7 @@ Use empty string "" for any field you cannot find.`}]})});
             <button onClick={()=>{setPickStart(weekDates[0]);setPickEnd(weekDates[weekDates.length-1]);setDatePickerOpen(o=>!o);}} title="Tap to choose your own dates" style={{fontSize:17,fontWeight:700,color:TXT,background:"none",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,padding:"4px 8px",borderRadius:10}}>{(()=>{const a=new Date(weekDates[0]+"T12:00:00");const b=new Date(weekDates[weekDates.length-1]+"T12:00:00");return weekDates.length===1?`${a.getDate()} ${MONTHS[a.getMonth()]}`:`${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;})()} <span style={{fontSize:11,color:TXT2}}>▾</span></button>
             <NavBtn disabled={!customRange&&weekIdx>=weeks.length-1} onClick={navNext}>›</NavBtn>
             {datePickerOpen&&(
-              <div style={{position:"absolute",top:"100%",left:"50%",transform:"translateX(-50%)",zIndex:60,background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:14,padding:14,boxShadow:"0 12px 40px rgba(0,0,0,0.6)",minWidth:250}}>
+              <div style={{position:"absolute",top:"100%",left:"50%",transform:"translateX(-50%)",zIndex:60,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:14,padding:14,boxShadow:"0 12px 40px rgba(0,0,0,0.6)",minWidth:250}}>
                 <div style={{fontSize:12,color:TXT2,marginBottom:10,fontWeight:600,textAlign:"center"}}>Pick your dates (1–10 days)</div>
                 <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"center",flexWrap:"wrap"}}>
                   <input type="date" value={pickStart} onChange={e=>setPickStart(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
@@ -725,7 +740,7 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* ADD MODAL */}
       {showAddModal&&(
         <div onClick={()=>!addLoading&&setShowAddModal(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:440,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:440,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
             <h3 style={{fontSize:22,fontWeight:800,margin:"0 0 4px",color:TXT}}>Add a Show</h3>
             <p style={{fontSize:14,color:TXT2,margin:"0 0 16px"}}>Paste a link from any Edinburgh Fringe venue website</p>
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>
@@ -755,14 +770,14 @@ Use empty string "" for any field you cannot find.`}]})});
           {proposals.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>No proposed days yet. Tap "+ New day" to start one.</div>}
           <div style={propLayout==="horizontal"?{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))",gap:16,alignItems:"start"}:{}}>
           {proposals.map(prop=>(
-            <div key={prop.id} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:16,marginBottom:propLayout==="horizontal"?0:20}}>
+            <div key={prop.id} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:16,marginBottom:propLayout==="horizontal"?0:20}}>
               <div style={{display:"flex",gap:8,marginBottom:collapsedProps[prop.id]?0:12,flexWrap:"wrap",alignItems:"center"}}>
                 <button onClick={()=>toggleCollapse(prop.id)} title={collapsedProps[prop.id]?"Expand":"Collapse"} style={{padding:"6px",borderRadius:8,border:"none",background:"transparent",color:TXT2,cursor:"pointer",display:"flex",alignItems:"center",flexShrink:0}}><ChevronIcon open={!collapsedProps[prop.id]}/></button>
-                <input value={prop.title} onChange={e=>updateProposal(prop.id,{title:e.target.value})} placeholder="Title" style={{flex:1,minWidth:120,padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,outline:"none"}}/>
+                <input value={prop.title} onChange={e=>updateProposal(prop.id,{title:e.target.value})} placeholder="Title" style={{flex:1,minWidth:90,padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,outline:"none"}}/>
                 <div style={{position:"relative"}}>
                   <button onClick={()=>setDateOpenId(dateOpenId===prop.id?null:prop.id)} title="Set a date" style={{padding:"7px 9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:prop.date?TXT:TXT3,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><CalIcon/>{prop.date?(()=>{const d=new Date(prop.date+"T12:00:00");return isNaN(d.getTime())?prop.date:` ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():""}</button>
-                  {dateOpenId===prop.id&&<div style={{position:"absolute",top:"100%",left:0,zIndex:40,marginTop:4,background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:10,boxShadow:"0 8px 24px rgba(0,0,0,0.5)",minWidth:210}}>
-                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(prop.date||"")?prop.date:""} onChange={e=>{updateProposal(prop.id,{date:e.target.value});setDateOpenId(null);}} style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                  {dateOpenId===prop.id&&<div style={{position:"absolute",top:"100%",left:0,zIndex:40,marginTop:4,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:10,boxShadow:"0 8px 24px rgba(0,0,0,0.5)",minWidth:210}}>
+                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(prop.date||"")?prop.date:""} onChange={e=>{var d=e.target.value;var patch={date:d};if(d&&(!prop.title||prop.title==="Proposed day")){var dt=new Date(d+"T12:00:00");if(!isNaN(dt.getTime()))patch.title="Proposed day "+String(dt.getDate()).padStart(2,"0")+"/"+String(dt.getMonth()+1).padStart(2,"0")+"/"+dt.getFullYear();}updateProposal(prop.id,patch);setDateOpenId(null);}} style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
                     <div style={{fontSize:11,color:TXT3,margin:"8px 0 4px"}}>or type your own:</div>
                     <input type="text" value={prop.date||""} onChange={e=>updateProposal(prop.id,{date:e.target.value})} placeholder="e.g. Sat 15 Aug" style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none"}}/>
                   </div>}
@@ -771,13 +786,13 @@ Use empty string "" for any field you cannot find.`}]})});
                 <button onClick={()=>deleteProposal(prop.id)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:700,cursor:"pointer"}}>✕</button>
               </div>
               {!collapsedProps[prop.id]&&<>
-              <textarea value={prop.comment||""} onChange={e=>updateProposal(prop.id,{comment:e.target.value})} placeholder="Why you think they'll like it (optional)..." rows={2} style={{width:"100%",boxSizing:"border-box",marginBottom:12,padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
-              <ErrorBoundary><ProposalDay date={prop.date} shows={dayShowsFor(prop)}/></ErrorBoundary>
-              {(prop.shows||[]).length>0&&<div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>{(prop.shows||[]).map((s,i)=>(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(168,85,247,0.15)",color:"#C084FC",padding:"3px 9px",borderRadius:8,fontSize:12,fontWeight:600}}>{s.name}<span onClick={()=>removeFromProposal(prop.id,i)} style={{cursor:"pointer",opacity:0.8}}>✕</span></span>))}</div>}
               <div style={{marginTop:14}}>
                 <button onClick={()=>{const opening=addOpenId!==prop.id;setAddOpenId(opening?prop.id:null);if(opening)loadCatalog();}} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer"}}><PlusIcon/> Add a show</button>
-                {addOpenId===prop.id&&<AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked),...(allCatalog||[])]} catNote={catState==="loading"?"Loading the full Fringe catalogue…":catState==="error"?"Couldn’t load the full catalogue — showing your shows only.":catState==="unconfigured"?"Tip: paste the All-tab CSV link into ALL_CSV_URL (top of the file) to search the full Fringe catalogue here.":catState==="ready-no-time-cols"?("Searching your shows + "+(allCatalog?allCatalog.length.toLocaleString():"0")+" listings — no Start time / End Time / Duration columns found in the All tab, so catalogue times show as —."):catState==="ready-empty-times"?("Searching your shows + "+(allCatalog?allCatalog.length.toLocaleString():"0")+" listings — the All tab has time columns but the cells look empty, so catalogue times show as —."):allCatalog?("Searching your shows + "+allCatalog.length.toLocaleString()+" catalogue listings ("+allCatalog.filter(s=>s.start).length.toLocaleString()+" with times)"):null} onAdd={s=>addToProposal(prop.id,s)}/>}
+                {addOpenId===prop.id&&<AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked),...(allCatalog||[])]} catNote={catState==="loading"?"Loading the full Fringe catalogue…":catState==="error"?"Couldn’t load the full catalogue — showing your shows only.":catState==="unconfigured"?"Tip: paste the All-tab CSV link into ALL_CSV_URL (top of the file) to search the full Fringe catalogue here.":catState==="ready-no-time-cols"?("Searching your shows + "+(allCatalog?allCatalog.length.toLocaleString():"0")+" listings — no Start time / End Time / Duration columns found in the All tab, so catalogue times show as —."):catState==="ready-empty-times"?("Searching your shows + "+(allCatalog?allCatalog.length.toLocaleString():"0")+" listings — the All tab has time columns but the cells look empty, so catalogue times show as —."):allCatalog?("Searching your shows + "+allCatalog.length.toLocaleString()+" catalogue listings ("+allCatalog.filter(s=>s.start).length.toLocaleString()+" with times)"):null} onAdd={s=>addToProposal(prop.id,s)} onDone={()=>setAddOpenId(null)}/>}
               </div>
+              <ErrorBoundary><ProposalDay date={prop.date} shows={dayShowsFor(prop)}/></ErrorBoundary>
+              <textarea value={prop.comment||""} onChange={e=>updateProposal(prop.id,{comment:e.target.value})} placeholder="Why you think they'll like it (optional)..." rows={2} style={{width:"100%",boxSizing:"border-box",marginBottom:12,padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+              {(prop.shows||[]).length>0&&<div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>{(prop.shows||[]).map((s,i)=>({s:s,i:i})).sort((a,b)=>{const ta=timeToMinutes(a.s.start),tb=timeToMinutes(b.s.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).map(({s,i})=>(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(168,85,247,0.15)",color:"#C084FC",padding:"3px 9px",borderRadius:8,fontSize:12,fontWeight:600}}>{s.start?formatTime(s.start)+" · ":""}{s.name}<span onClick={()=>removeFromProposal(prop.id,i)} style={{cursor:"pointer",opacity:0.8}}>✕</span></span>))}</div>}
               </>}
             </div>
           ))}
@@ -806,7 +821,7 @@ Use empty string "" for any field you cannot find.`}]})});
           <h2 style={{fontSize:32,fontWeight:900,textAlign:"center",margin:"0 0 4px",letterSpacing:"-0.5px",lineHeight:1.15}}><span style={{marginRight:8}}>🎉</span><span style={{background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 2px 12px rgba(168,85,247,0.45))"}}>Here are your 2026 Fringe stats!</span><span style={{marginLeft:8}}>🎉</span></h2>
           <p style={{textAlign:"center",color:TXT2,fontSize:14,marginBottom:22}}>A summary of your Fringe experience this year.</p>
           <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2, 1fr)":"repeat(3, 1fr)",gap:12,alignItems:"stretch"}}>
-            {tiles.map((t,i)=>(<div key={i} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:"16px 14px",textAlign:"center"}}>
+            {tiles.map((t,i)=>(<div key={i} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:"16px 14px",textAlign:"center"}}>
               <div style={{fontSize:t.big?42:22,fontWeight:900,color:t.cl,lineHeight:1.1,wordBreak:"break-word"}}>{t.n}</div>
               <div style={{fontSize:12,color:TXT2,marginTop:6,lineHeight:1.35}}>{t.l}</div>
             </div>))}
@@ -826,22 +841,12 @@ Use empty string "" for any field you cannot find.`}]})});
 
       {view==="jospicks"&&(
         <div style={{padding:"14px 12px 50px",maxWidth:1000,margin:"0 auto"}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
-              <p style={{fontSize:13,color:TXT2,margin:0}}>Give each show a category, then filter to compare.</p>
-              <MultiDrop open={openDrop==="jolane"} onToggle={()=>setOpenDrop(openDrop==="jolane"?null:"jolane")} label="Category" selected={joLaneFilter} onSelect={toggleJoLane} onClear={()=>setJoLaneFilter([])} options={joCats.map(cc=>({value:cc,label:cc}))}/>
-            </div>
-            <div style={{display:"flex",gap:8,flexShrink:0,flexWrap:"wrap"}}><button onClick={saveJoToSheet} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(52,211,153,0.2)",color:"#34D399",fontSize:13,fontWeight:700,cursor:"pointer"}}>Save to sheet</button><button onClick={shareJoPicks} style={{padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(96,165,250,0.2)",color:"#93C5FD",fontSize:13,fontWeight:700,cursor:"pointer"}}>Share snapshot</button></div>
-          </div>
-          <div style={{display:"inline-flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap",maxWidth:"100%",background:"rgba(255,255,255,0.03)",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:"6px 10px"}}>
-            <span style={{fontSize:12,fontWeight:800,color:TXT,whiteSpace:"nowrap"}}>Price £{joPMin}–£{joPMax==null?joPriceMax:joPMax}</span>
-            <input type="range" min={0} max={joPriceMax} value={joPMin} onChange={e=>{const v=Number(e.target.value);setJoPMin(Math.min(v,joPMax==null?joPriceMax:joPMax));}} style={{width:82,accentColor:"#A855F7"}}/><input type="range" min={0} max={joPriceMax} value={joPMax==null?joPriceMax:joPMax} onChange={e=>{const v=Number(e.target.value);setJoPMax(v>=joPriceMax?null:Math.max(v,joPMin));}} style={{width:82,accentColor:"#A855F7"}}/>
-            {(joPMin>0||joPMax!=null)&&<button onClick={()=>{setJoPMin(0);setJoPMax(null);}} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:12,fontWeight:700,cursor:"pointer"}}>Reset</button>}
-          </div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))",gridAutoRows:"252px",gap:12}}>
-            {joCards.map(s=>(<JoCard key={reviewKey(s)} show={s} lane={catOf(s)} lanes={joCats} onLane={v=>setJoLane(reviewKey(s),v)} onOpen={()=>setSelectedShow(s)}/>))}
-          </div>
-          {joCards.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>No shows in this category yet.</div>}
+          <p style={{fontSize:13,color:TXT2,margin:"0 0 14px"}}>Browse the full Fringe programme{allCatalog?(" · "+allCatalog.length.toLocaleString()+" shows"):""}. Use the search box above to find shows.</p>
+          {catState==="loading"?<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"40px 10px"}}>Loading the full catalogue…</div>:catState==="error"?<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"40px 10px"}}>Couldn’t load the catalogue — check the All-tab CSV link.</div>:(()=>{const q=searchQuery.trim();const base=allCatalog||[];const filtered=q?base.filter(s=>matchesSearch(s,q)):base;const capped=filtered.slice(0,120);return (<>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))",gridAutoRows:"252px",gap:12}}>{capped.map(s=>(<JoCard key={s.name+"|"+s.venue} show={s} readOnly onOpen={()=>setSelectedShow(s)}/>))}</div>
+            {filtered.length>capped.length&&<div style={{textAlign:"center",color:TXT3,fontSize:13,padding:"16px"}}>Showing the first 120 of {filtered.length.toLocaleString()} — search above to narrow.</div>}
+            {filtered.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>{base.length?"No shows match your search.":"No shows found."}</div>}
+          </>);})()}
         </div>
       )}
 
@@ -853,10 +858,11 @@ Use empty string "" for any field you cannot find.`}]})});
       )}
 
       {helpOpen&&<HelpModal rows={help} onClose={()=>setHelpOpen(false)}/>}
+      {syncOpen&&<SyncModal onClose={()=>setSyncOpen(false)}/>}
 
       {selectedShow&&(
         <div onClick={()=>setSelectedShow(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div ref={modalRef} onClick={e=>e.stopPropagation()} onTouchStart={e=>{dragStart.current=(modalRef.current&&modalRef.current.scrollTop<=0)?e.touches[0].clientY:null;}} onTouchMove={e=>{if(dragStart.current!=null){const dy=e.touches[0].clientY-dragStart.current;setDragY(dy>0?dy:0);}}} onTouchEnd={()=>{if(dragY>110)setSelectedShow(null);setDragY(0);dragStart.current=null;}} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)",boxSizing:"border-box",position:"relative",maxHeight:"90vh",overflowY:"auto",transform:dragY?`translateY(${dragY}px)`:"none",transition:dragY?"none":"transform 0.25s ease",touchAction:dragY>0?"none":"auto"}}>
+          <div ref={modalRef} onClick={e=>e.stopPropagation()} onTouchStart={e=>{dragStart.current=(modalRef.current&&modalRef.current.scrollTop<=0)?e.touches[0].clientY:null;}} onTouchMove={e=>{if(dragStart.current!=null){const dy=e.touches[0].clientY-dragStart.current;setDragY(dy>0?dy:0);}}} onTouchEnd={()=>{if(dragY>110)setSelectedShow(null);setDragY(0);dragStart.current=null;}} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)",boxSizing:"border-box",position:"relative",maxHeight:"90vh",overflowY:"auto",transform:dragY?`translateY(${dragY}px)`:"none",transition:dragY?"none":"transform 0.25s ease",touchAction:dragY>0?"none":"auto"}}>
             <button onClick={()=>setSelectedShow(null)} aria-label="Close" style={{position:"fixed",top:18,right:18,zIndex:1001,width:36,height:36,borderRadius:18,background:"rgba(21,21,40,0.92)",border:`1px solid ${CARD_BORDER}`,fontSize:20,cursor:"pointer",color:TXT,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,boxShadow:"0 2px 8px rgba(0,0,0,0.4)"}}>×</button>
             <div style={{width:40,height:5,borderRadius:3,background:"rgba(255,255,255,0.25)",margin:"-14px auto 14px"}}/>
             <div style={{display:"inline-block",fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:8,marginBottom:14,background:gc(selectedShow.organiser).bg,color:"#fff",letterSpacing:"0.5px"}}>{selectedShow.organiser}</div>
@@ -943,7 +949,7 @@ Use empty string "" for any field you cannot find.`}]})});
       </div>
       {showFeedback&&(
         <div onClick={()=>setShowFeedback(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
-          <div onClick={e=>e.stopPropagation()} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:24,maxWidth:420,width:"100%",boxSizing:"border-box",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
+          <div onClick={e=>e.stopPropagation()} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:24,maxWidth:420,width:"100%",boxSizing:"border-box",boxShadow:"0 24px 80px rgba(0,0,0,0.6)"}}>
             {feedbackSent?(
               <div style={{textAlign:"center",padding:"10px 0"}}>
                 <div style={{fontSize:40,marginBottom:8}}>🎉</div>
@@ -1000,7 +1006,7 @@ function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps}){
   const timeStr=show.start?(formatTime(show.start)+(show.end?(" – "+formatTime(show.end)):"")):"";
   const btn={display:"inline-flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"none"};
   return (
-    <div {...(dragProps||{})} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderLeft:`4px solid ${c.bg}`,borderRadius:12,padding:"12px 14px",cursor:dragProps?"grab":"default",height:"100%",boxSizing:"border-box",display:"flex",flexDirection:"column",overflow:"hidden"}}>
+    <div {...(dragProps||{})} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderLeft:`4px solid ${c.bg}`,borderRadius:12,padding:"12px 14px",cursor:dragProps?"grab":"default",height:"100%",boxSizing:"border-box",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div onClick={onOpen} style={{cursor:onOpen?"pointer":"default",flex:"1 1 auto",minHeight:0,overflow:"hidden"}}>
         <div style={{fontSize:18,fontWeight:800,color:TXT,lineHeight:1.2,display:"-webkit-box",WebkitLineClamp:2,WebkitBoxOrient:"vertical",overflow:"hidden"}}>{show.name}</div>
         {timeStr&&<div style={{fontSize:15,color:TXT2,marginTop:7,fontWeight:600}}>{timeStr}</div>}
@@ -1010,7 +1016,7 @@ function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps}){
       </div>
       <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",flexShrink:0,paddingTop:10}}>
         {show.link&&<a href={show.link} target="_blank" rel="noopener noreferrer" style={btn}>View Listing ↗</a>}
-        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"#151528",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:"dark"}}><option value="">Uncategorised</option>{lanes.map(l=>(<option key={l} value={l}>{l}</option>))}</select>}
+        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"var(--card-solid)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:"dark"}}><option value="">Uncategorised</option>{lanes.map(l=>(<option key={l} value={l}>{l}</option>))}</select>}
       </div>
     </div>
   );
@@ -1027,7 +1033,7 @@ class ErrorBoundary extends Component{
   static getDerivedStateFromError(e){return {err:e};}
   render(){if(this.state.err)return <div style={{padding:24,color:TXT,fontFamily:"system-ui,-apple-system,sans-serif",maxWidth:600,margin:"0 auto"}}><div style={{fontWeight:800,fontSize:18,marginBottom:8}}>Something went wrong.</div><div style={{fontSize:13,color:"#F87171",marginBottom:14,wordBreak:"break-word"}}>{String((this.state.err&&this.state.err.message)||this.state.err)}</div><button onClick={()=>{try{location.reload();}catch(e){}}} style={{padding:"9px 18px",borderRadius:10,border:"none",background:"#A855F7",color:"#fff",fontWeight:700,fontSize:14,cursor:"pointer"}}>Reload</button></div>;return this.props.children;}
 }
-function AddShowList({shows,onAdd,catNote}){
+function AddShowList({shows,onAdd,catNote,onDone}){
   const [q,setQ]=useState("");
   const t=q.trim().toLowerCase();
   const list=(()=>{const base=[...(shows||[])].filter(s=>s&&s.name).sort((a,b)=>{const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).filter(s=>!t||s.name.toLowerCase().includes(t)||(s.venue||"").toLowerCase().includes(t)||(s.artist||"").toLowerCase().includes(t));const seen=new Set();const dd=[];for(const s of base){const k=s.name.toLowerCase()+"|"+((s.venue||"").toLowerCase());if(seen.has(k))continue;seen.add(k);dd.push(s);}return dd;})();
@@ -1036,19 +1042,24 @@ function AddShowList({shows,onAdd,catNote}){
     <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by show, venue or artist..." aria-label="Search shows to add" style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:6}}/>
     {catNote&&<div style={{fontSize:11,color:TXT3,margin:"0 2px 8px"}}>{catNote}</div>}
     <div style={{maxHeight:"max(240px, calc(100vh - 320px))",overflowY:"auto",border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
-      {capped.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
-        <span style={{fontSize:13,color:TXT2,minWidth:0,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}><b style={{color:TXT}}>{s.start?formatTime(s.start):"—"}</b> · {s.name} <span style={{color:TXT3}}>· {s.venue}</span></span>
+      {capped.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
+        <span style={{flex:1,minWidth:0}}>
+          <div style={{fontSize:13,color:TXT,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap",fontWeight:600}}>{s.start?formatTime(s.start)+" · ":""}{s.name}</div>
+          <div style={{fontSize:11,color:TXT3,overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>📍 {s.venueCode?"#"+s.venueCode+" ":""}{s.venue}{s.duration?" · "+s.duration+(/^\d+$/.test(String(s.duration))?"m":""):""}</div>
+        </span>
+        {s.price?<span style={{flexShrink:0,fontSize:15,fontWeight:800,color:TXT}}>{s.price}</span>:null}
         <span style={{flexShrink:0,width:26,height:26,borderRadius:8,background:"rgba(168,85,247,0.25)",color:"#C084FC",fontSize:16,fontWeight:800,lineHeight:"26px",textAlign:"center"}}>+</span>
       </div>))}
       {list.length>capped.length&&<div style={{padding:"8px 10px",fontSize:11,color:TXT3,textAlign:"center"}}>Showing the first 60 of {list.length.toLocaleString()} matches — keep typing to narrow.</div>}
       {list.length===0&&<div style={{padding:"10px",fontSize:12,color:TXT3,textAlign:"center"}}>No matches.</div>}
     </div>
+    {onDone&&<button onClick={onDone} style={{width:"100%",marginTop:8,padding:"9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(168,85,247,0.12)",color:"#C084FC",fontSize:13,fontWeight:800,cursor:"pointer"}}>Done adding</button>}
   </div>);
 }
 function HelpIcon(){return <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9"/><path d="M9.3 9a2.7 2.7 0 0 1 5.2 1c0 1.9-2.5 2.2-2.5 3.4"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>;}
 function HelpModal({rows,onClose}){
   return (<div onClick={onClose} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1100,display:"flex",alignItems:"flex-start",justifyContent:"center",overflowY:"auto",padding:"30px 12px"}}>
-    <div onClick={e=>e.stopPropagation()} style={{background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:16,maxWidth:600,width:"100%",padding:"22px 22px 26px",position:"relative"}}>
+    <div onClick={e=>e.stopPropagation()} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,maxWidth:600,width:"100%",padding:"22px 22px 26px",position:"relative"}}>
       <button onClick={onClose} style={{position:"absolute",top:12,right:12,background:"none",border:"none",color:TXT2,fontSize:22,cursor:"pointer"}}>✕</button>
       <div style={{fontSize:20,fontWeight:900,marginBottom:14,color:TXT}}>Help</div>
       {rows==="loading"&&<div style={{color:TXT2,fontSize:14}}>Loading…</div>}
@@ -1079,7 +1090,7 @@ function ProposalDay({date,shows}){
   const items=(shows||[]).filter(s=>s.start).map(s=>{const sm=normDayMin(s.start);let em=normDayMin(s.end);if(em==null||em<=sm)em=sm+60;return {...s,_s:sm,_e:em};}).sort((a,b)=>a._s-b._s);
   const st=proposalStats(shows);
   const dl=date?(()=>{const d=new Date(date+"T12:00:00");return `${DAYS_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():"Pick a day";
-  const summary=(<div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.05)",fontWeight:600,lineHeight:1.5}}><span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span></div>);
+  const summary=(<div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.05)",fontWeight:600,lineHeight:1.5,textAlign:"center"}}><span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span></div>);
   if(items.length===0)return <div>{summary}<div style={{fontSize:13,color:TXT3,textAlign:"center",padding:"14px"}}>No shows with times yet.</div></div>;
   const minS=Math.min(...items.map(i=>i._s)),maxE=Math.max(...items.map(i=>i._e));
   const startH=Math.floor(minS/60),endH=Math.ceil(maxE/60),HOUR=86,rangeTop=startH*60,gh=(endH-startH)*HOUR;
@@ -1179,7 +1190,7 @@ function MultiDrop({open,onToggle,label,icon,options,selected,onSelect,onClear,a
   return (
     <div style={{position:"relative"}}>
       <button onClick={onToggle} style={{padding:"7px 14px",borderRadius:20,border:`1px solid ${CARD_BORDER}`,fontSize:13,fontWeight:700,cursor:"pointer",background:n?accent+"22":"rgba(255,255,255,0.06)",color:n?accent:TXT,display:"inline-flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{n?label+" ("+n+")":label} ▾</button>
-      {open&&(<div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:60,background:"#151528",border:`1px solid ${CARD_BORDER}`,borderRadius:12,padding:6,minWidth:180,maxHeight:280,overflowY:"auto",boxShadow:"0 10px 30px rgba(0,0,0,0.6)"}}>
+      {open&&(<div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:60,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:12,padding:6,minWidth:180,maxHeight:280,overflowY:"auto",boxShadow:"0 10px 30px rgba(0,0,0,0.6)"}}>
         {n>0&&<div onClick={onClear} style={{fontSize:12,color:accent,fontWeight:700,padding:"5px 8px",cursor:"pointer"}}>Clear all</div>}
         {options.length===0&&<div style={{fontSize:12,color:TXT3,padding:"7px 8px",whiteSpace:"nowrap"}}>Nothing to filter yet</div>}
         {options.map(opt=>(<label key={opt.value} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",cursor:"pointer",fontSize:13,color:TXT,borderRadius:8,background:selected.includes(opt.value)?accent+"26":"transparent"}}><input type="checkbox" checked={selected.includes(opt.value)} onChange={()=>onSelect(opt.value)} style={{accentColor:accent}}/>{opt.dot&&<span style={{width:9,height:9,borderRadius:3,background:opt.dot,display:"inline-block",flexShrink:0}}/>}{opt.label}</label>))}
