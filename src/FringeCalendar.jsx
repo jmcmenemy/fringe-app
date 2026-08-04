@@ -7,6 +7,8 @@ const SHEET_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vSdAFEpJDVvI1
 // Full Fringe catalogue: the "All" tab of Jo's sheet (headers in row 1, ~4000 rows), read directly
 // via the gviz CSV endpoint (works because the sheet is shared "anyone with the link can view").
 const ALL_CSV_URL = "https://docs.google.com/spreadsheets/d/15aHnYGBL73-n6MOf2Su1hlEG7FxReUjEyc90_AZugB0/gviz/tq?tqx=out:csv&sheet=All&headers=1";
+// Bump when a change alters saved-data shape; runs migrations + shows a one-time "site updated" notice.
+const APP_DATA_VERSION = 1;
 const HELP_URL = "https://docs.google.com/spreadsheets/d/15aHnYGBL73-n6MOf2Su1hlEG7FxReUjEyc90_AZugB0/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent("Help - me");
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz6HNRYWBhQ2GoTV_30wGZ-xpHPbYdSqswePtgracYR8rQ_PATiCX5J1-u2rxb8jErf/exec";
 const JOPICKS_CSV_URL = ""; // paste the published-CSV URL of the sheet's "JoPicks" tab to switch on the static #jolive link
@@ -100,12 +102,14 @@ function parseCSVToShows(csv){
   // Match columns BY HEADER NAME (first match) so re-ordering the sheet can't break this.
   const hdr=rows[0].map(h=>(h||"").toString().trim().toLowerCase());
   const col=n=>hdr.indexOf(n.toLowerCase());
+  const colAny=(...names)=>{for(const n of names){const k=hdr.indexOf(n.toLowerCase());if(k>=0)return k;}return -1;};
   const iName=col("name of show"),iLink=col("link"),iPrice=col("price"),
         iOrg=col("organiser"),iVenue=col("where showing"),iStart=col("time start"),
         iEnd=col("time end"),iLtf=col("lovethefringe"),iBooked=col("booked"),
         iDate=col("date"),iAtt=col("additional tickets"),iTix=col("total tix"),
-        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability"),iVenueCode=col("venue #"),iGenre=col("genre"),iJoCat=col("jo category");
+        iNotes=col("notes"),iAddr=col("address"),iAvail=col("availability"),iVenueCode=col("venue #"),iGenre=col("genre"),iJoCat=col("jo category"),iLat=colAny("latitude","lat"),iLng=colAny("longitude","long","lng","lon");
   const g=(row,i)=>i>=0&&row[i]!=null?String(row[i]).trim():"";
+  const pf=(row,i)=>{const n=parseFloat(g(row,i));return isNaN(n)?null:n;};
   const shows=[],wishlist=[];
   for(let k=1;k<rows.length;k++){
     const row=rows[k];
@@ -117,7 +121,7 @@ function parseCSVToShows(csv){
       duration:parseDuration(g(row,iStart),g(row,iEnd)),
       ltf:g(row,iLtf).toLowerCase()==="yes",booked:g(row,iBooked).toLowerCase()==="yes"?1:0,
       date,attendees:g(row,iAtt),tickets:parseInt(g(row,iTix))||0,venueCode:g(row,iVenueCode),
-      notes:g(row,iNotes),address:g(row,iAddr),fullAddress:(g(row,20)||g(row,iAddr)),availability:g(row,iAvail),genres:g(row,iGenre),joCat:g(row,iJoCat)};
+      notes:g(row,iNotes),address:g(row,iAddr),fullAddress:(g(row,20)||g(row,iAddr)),availability:g(row,iAvail),genres:g(row,iGenre),joCat:g(row,iJoCat),lat:pf(row,iLat),lng:pf(row,iLng)};
     if(date)shows.push(show);else wishlist.push(show);
   }
   return{shows,wishlist};
@@ -130,7 +134,7 @@ function dateToStr(d){return d.toISOString().slice(0,10);}
 function addDays(d,n){const r=new Date(d);r.setDate(r.getDate()+n);return r;}
 function getWeeks(shows){const m=new Set();shows.filter(s=>s.date).forEach(s=>m.add(dateToStr(getMonday(s.date))));return[...m].sort();}
 function extractPostcode(a){if(!a)return null;const m=a.match(/[A-Z]{1,2}\d[A-Z\d]?\s*\d[A-Z]{2}/i);return m?m[0]:null;}
-function mapsUrl(a){return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(a)}`;}
+function mapsUrl(x){if(x&&typeof x==="object"){const la=x.lat,ln=x.lng;if(la!=null&&ln!=null&&!isNaN(la)&&!isNaN(ln))return`https://www.google.com/maps/search/?api=1&query=${la},${ln}`;x=x.fullAddress||x.address||x.venue||"";}return`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(x||"")}`;}
 function pad2(n){return String(n).padStart(2,"0");}
 function fIcsStamp(dateISO,hm){const[y,mo,da]=dateISO.split("-");const[h,mi]=(hm||"00:00").split(":");return `${y}${mo}${da}T${pad2(h)}${pad2(mi)}00`;}
 function fAddDayISO(dateISO){const d=new Date(dateISO+"T12:00:00");d.setDate(d.getDate()+1);return `${d.getFullYear()}-${pad2(d.getMonth()+1)}-${pad2(d.getDate())}`;}
@@ -140,6 +144,10 @@ function csvRows(text){const rows=[];let row=[],cell="",inQ=false;for(let i=0;i<
 function normCatTime(t){if(!t)return "";const m=String(t).trim().match(/^(\d{1,2}):(\d{2})/);return m?`${m[1].padStart(2,"0")}:${m[2]}`:"";}
 function normCatDur(d){if(!d)return "";const s=String(d).trim();let m=s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);if(m){const h=parseInt(m[1]),mm=parseInt(m[2]);return h>0?(mm>0?`${h}h${String(mm).padStart(2,"0")}`:`${h}h`):`${mm}m`;}m=s.match(/^(\d+)$/);if(m){const t=parseInt(m[1]);const h=Math.floor(t/60),mm=t%60;return h>0?(mm>0?`${h}h${String(mm).padStart(2,"0")}`:`${h}h`):`${mm}m`;}return s;}
 function parseCatalogCSV(text){const rows=csvRows(text);if(rows.length<2)return[];let hri=-1;for(let i=0;i<Math.min(rows.length,6);i++){if(rows[i].some(cell=>String(cell||"").trim().toLowerCase()==="title")){hri=i;break;}}if(hri<0)return[];const hdr=rows[hri].map(h=>String(h||"").trim().toLowerCase());const ix=names=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k;}return -1;};const iT=ix(["title"]),iV=ix(["venue"]),iVC=ix(["venue code","venue #"]),iW=ix(["website","link"]),iG=ix(["genre"]),iGT=ix(["genre tags"]),iA=ix(["artist"]),iSt=ix(["start time","time start","start"]),iEn=ix(["end time","time end","end"]),iDu=ix(["duration","length"]),iFP=ix(["first performance date","first date","first"]),iLP=ix(["last performance date","last date","last"]);parseCatalogCSV.found={start:iSt>=0,end:iEn>=0,duration:iDu>=0};if(iT<0)return[];const out=[];for(let r=hri+1;r<rows.length;r++){const g=j=>j>=0?String(rows[r][j]||"").trim():"";const name=g(iT);if(!name)continue;const genres=[g(iG),g(iGT)].filter(Boolean).join(", ");const start=normCatTime(g(iSt));let end=normCatTime(g(iEn));const duration=normCatDur(g(iDu));if(!end&&start&&duration){const sm=timeToMinutes(start);const dm=(()=>{const m1=duration.match(/^(\d+)h(?:(\d{1,2}))?$/);if(m1)return parseInt(m1[1])*60+(m1[2]?parseInt(m1[2]):0);const m2=duration.match(/^(\d+)m$/);return m2?parseInt(m2[1]):0;})();if(sm!=null&&dm>0){const em=(sm+dm)%1440;end=`${String(Math.floor(em/60)).padStart(2,"0")}:${String(em%60).padStart(2,"0")}`;}}out.push({name,venue:g(iV),venueCode:g(iVC),link:g(iW),genres,artist:g(iA),start,end,duration,firstDate:g(iFP),lastDate:g(iLP),price:"",organiser:"",address:"",fullAddress:"",booked:0,fromCatalog:true});}return out;}
+function fringeKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf("fringe-")===0)out.push(k);}}catch(e){}return out;}
+function migrateData(fromV,toV){/* future key renames go here: read old key, write new, never delete blindly */}
+function downloadBackup(){try{const data={};fringeKeys().forEach(k=>{data[k]=localStorage.getItem(k);});const payload={app:"fringe-personal",version:APP_DATA_VERSION,savedAt:new Date().toISOString(),data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="fringe-planner-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}catch(e){alert("Backup failed: "+(e&&e.message||e));}}
+function restoreBackup(file,onDone){const rd=new FileReader();rd.onload=()=>{try{const obj=JSON.parse(rd.result);const d=obj&&obj.data;if(!d||typeof d!=="object")throw new Error("this doesn't look like a planner backup file");if(!window.confirm("Restore this backup? It replaces the reviews, tags and proposals saved on this device."))return;Object.keys(d).forEach(k=>{if(k.indexOf("fringe-")===0&&typeof d[k]==="string")localStorage.setItem(k,d[k]);});if(obj.version&&obj.version<APP_DATA_VERSION)migrateData(obj.version,APP_DATA_VERSION);localStorage.setItem("fringe-data-version",String(APP_DATA_VERSION));onDone&&onDone();}catch(e){alert("Couldn't restore: "+(e&&e.message||e));}};rd.onerror=()=>alert("Couldn't read that file.");rd.readAsText(file);}
 function icsForShows(list){const evs=list.map(s=>{const full=icsForShow(s);const m=full.match(/BEGIN:VEVENT[\s\S]*END:VEVENT/);return m?m[0]:"";}).filter(Boolean);return ["BEGIN:VCALENDAR","VERSION:2.0","PRODID:-//fringe-app//EN","CALSCALE:GREGORIAN",...evs,"END:VCALENDAR"].join("\r\n");}
 function downloadShowsICS(list){const blob=new Blob([icsForShows(list)],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="fringe-bookings.ics";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}
 function downloadShowICS(s){const blob=new Blob([icsForShow(s)],{type:"text/calendar;charset=utf-8"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download=(String(s.name)||"show").replace(/[^a-z0-9]+/gi,"-").toLowerCase().replace(/^-|-$/g,"")+".ics";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}
@@ -216,6 +224,8 @@ function FringeCalendarInner(){
   const[pickEnd,setPickEnd]=useState("");
   const[showFilterMenu,setShowFilterMenu]=useState(false);
   const[fabPos,setFabPos]=useState(null);const fabDrag=useRef(null);
+  const[updateBanner,setUpdateBanner]=useState(false);
+  useEffect(()=>{try{const k="fringe-data-version";const prev=parseInt(localStorage.getItem(k)||"0",10);if(!prev){localStorage.setItem(k,String(APP_DATA_VERSION));}else if(prev<APP_DATA_VERSION){migrateData(prev,APP_DATA_VERSION);localStorage.setItem(k,String(APP_DATA_VERSION));setUpdateBanner(true);}}catch(e){}},[]);
   const[shareMode,setShareMode]=useState(false);const[shareSel,setShareSel]=useState(()=>new Set());
   const toggleShareSel=s=>{const k=reviewKey(s);setShareSel(prev=>{const n=new Set(prev);if(n.has(k))n.delete(k);else n.add(k);return n;});};
   const copyBookingsLink=()=>{const sel=allShows.filter(s=>s.booked===1&&shareSel.has(reviewKey(s)));if(!sel.length){window.alert("Tick at least one booked show first.");return;}const token=encodeBookings(sel);const url=`${window.location.origin}${window.location.pathname}#b=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Share link with "+sel.length+" booking"+(sel.length!==1?"s":"")+" copied — send it to a friend:\n\n"+url);};
@@ -452,6 +462,11 @@ Use empty string "" for any field you cannot find.`}]})});
   return(
     <div style={{fontFamily:"'Inter',system-ui,-apple-system,sans-serif",maxWidth:960,margin:"0 auto",color:TXT,padding:isMobile?"0 4px 88px":"0 4px",background:BG,minHeight:"100vh"}}>
       <style>{"select,option{color:#F1F0F7}option{background:#151528;color:#F1F0F7}"}</style>
+      {updateBanner&&<div role="status" style={{background:"rgba(168,85,247,0.14)",border:`1px solid #a855f7`,borderRadius:12,padding:"10px 14px",margin:"10px 8px 0",display:"flex",gap:10,alignItems:"center",flexWrap:"wrap",fontSize:13}}>
+        <span style={{color:TXT,flex:"1 1 220px"}}>✨ The planner's been updated — your reviews, tags and proposals are safe. Grab a backup just in case.</span>
+        <button onClick={downloadBackup} style={{padding:"7px 13px",borderRadius:9,border:"none",background:ACCENT,color:"#fff",fontWeight:800,cursor:"pointer",fontSize:12}}>⬇ Download backup</button>
+        <button onClick={()=>setUpdateBanner(false)} style={{padding:"7px 11px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontWeight:700,cursor:"pointer",fontSize:12}}>Dismiss</button>
+      </div>}
 
       {/* HEADER */}
       <div style={{position:"sticky",top:0,zIndex:50,background:BG}}>
@@ -701,7 +716,7 @@ Use empty string "" for any field you cannot find.`}]})});
               <GenrePills show={rec}/>
               <div style={{display:"flex",gap:10,marginTop:10}}>
                 {rec.link&&<a href={rec.link} target="_blank" rel="noopener noreferrer" style={{fontSize:13,fontWeight:600,color:c.bg}}>View listing →</a>}
-                {pc&&<a href={mapsUrl(rec.address)} target="_blank" rel="noopener noreferrer" style={{fontSize:13,fontWeight:600,color:"#60A5FA"}}>{pc} ↗</a>}
+                {pc&&<a href={mapsUrl(rec)} target="_blank" rel="noopener noreferrer" style={{fontSize:13,fontWeight:600,color:"#60A5FA"}}>{pc} ↗</a>}
               </div>
             </div>);})}
         </div>
@@ -904,7 +919,7 @@ Use empty string "" for any field you cannot find.`}]})});
             </div>
             {selectedShow.notes&&<div style={{fontSize:14,color:TXT2,fontStyle:"italic",marginBottom:12}}>{selectedShow.notes}</div>}
             {selectedShow.address&&(()=>{const pc=extractPostcode(selectedShow.address);return(
-              <div style={{fontSize:14,color:TXT2,marginBottom:18}}>📍 {pc?(<>{selectedShow.address.replace(pc,"").replace(/,\s*$/,"")}{", "}<a href={mapsUrl(selectedShow.address)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>):(<a href={mapsUrl(selectedShow.address)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA"}}>{selectedShow.address}</a>)}</div>);})()}
+              <div style={{fontSize:14,color:TXT2,marginBottom:18}}>📍 {pc?(<>{selectedShow.address.replace(pc,"").replace(/,\s*$/,"")}{", "}<a href={mapsUrl(selectedShow)} target="_blank" rel="noopener noreferrer" title={(selectedShow.lat!=null&&selectedShow.lng!=null?"Opens exact coordinates ("+selectedShow.lat+", "+selectedShow.lng+")":"No coordinates for this show — opens address search")} style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>):(<a href={mapsUrl(selectedShow)} target="_blank" rel="noopener noreferrer" title={(selectedShow.lat!=null&&selectedShow.lng!=null?"Opens exact coordinates ("+selectedShow.lat+", "+selectedShow.lng+")":"No coordinates for this show — opens address search")} style={{color:"#60A5FA"}}>{selectedShow.address}</a>)}</div>);})()}
             {selectedShow.link&&<a href={selectedShow.link} target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"12px 16px",borderRadius:12,background:gc(selectedShow.organiser).bg,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>View Listing →</a>}
             {selectedShow.date&&selectedShow.start&&(
               <div style={{display:"flex",gap:8,marginTop:10}}>
@@ -1001,8 +1016,8 @@ function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps}){
   );
 }
 function decProp_(o){return{title:o.t||"",date:o.d||"",comment:o.c||"",shows:(o.s||[]).map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||"",fullAddress:a[9]||""}))};}
-function encodeBookings(shows){try{return LZString.compressToEncodedURIComponent(JSON.stringify({b:(shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.organiser,x.link||"",x.date||"",x.fullAddress||x.address||"",x.duration||""])}));}catch(e){return "";}}
-function decodeBookings(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.b))return o.b.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],organiser:a[5],link:a[6]||"",date:a[7]||"",address:a[8]||"",fullAddress:a[8]||"",duration:a[9]||"",booked:1}));}}catch(e){}return null;}
+function encodeBookings(shows){try{return LZString.compressToEncodedURIComponent(JSON.stringify({b:(shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.organiser,x.link||"",x.date||"",x.fullAddress||x.address||"",x.duration||"",x.lat!=null?x.lat:"",x.lng!=null?x.lng:""])}));}catch(e){return "";}}
+function decodeBookings(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.b))return o.b.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],organiser:a[5],link:a[6]||"",date:a[7]||"",address:a[8]||"",fullAddress:a[8]||"",duration:a[9]||"",lat:(a[10]!==""&&a[10]!=null?Number(a[10]):null),lng:(a[11]!==""&&a[11]!=null?Number(a[11]):null),booked:1}));}}catch(e){}return null;}
 function encodeProposals(props){try{return LZString.compressToEncodedURIComponent(JSON.stringify({m:(props||[]).map(p=>({t:p.title||"",d:p.date||"",c:p.comment||"",s:(p.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||""])}))}));}catch(e){return "";}}
 function decodeProposals(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.m))return o.m.map(decProp_);if(o&&Array.isArray(o.s))return [decProp_(o)];if(o&&o.shows)return [o];}}catch(e){}try{const o=JSON.parse(decodeURIComponent(atob(t)));if(o){if(Array.isArray(o.m))return o.m.map(decProp_);if(o.shows)return [o];}}catch(e){}return null;}
 function encodeProposal(o){try{const c={t:o.title||"",d:o.date||"",s:(o.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||""])};return LZString.compressToEncodedURIComponent(JSON.stringify(c));}catch(e){return "";}}
@@ -1040,6 +1055,14 @@ function HelpModal({rows,onClose}){
       {rows==="error"&&<div style={{color:"#fca5a5",fontSize:14}}>Couldn't load help — make sure a sheet called "Help - me" exists and the spreadsheet is shared as "Anyone with the link can view".</div>}
       {Array.isArray(rows)&&rows.length===0&&<div style={{color:TXT3,fontSize:14}}>No help content yet.</div>}
       {Array.isArray(rows)&&rows.map((r,i)=>{const head=(r[0]||"").trim(),body=(r.length>1?r.slice(1).filter(Boolean).join("  "):"").trim();if(!head&&!body)return null;if(head&&body)return <div key={i} style={{marginBottom:14}}><div style={{fontSize:15,fontWeight:800,color:TXT,marginBottom:3}}>{head}</div><div style={{fontSize:14,color:TXT2,lineHeight:1.55,whiteSpace:"pre-wrap"}}>{body}</div></div>;return <div key={i} style={{fontSize:14,color:TXT2,lineHeight:1.55,marginBottom:10,whiteSpace:"pre-wrap"}}>{head||body}</div>;})}
+      <div style={{marginTop:18,paddingTop:16,borderTop:`1px solid ${CARD_BORDER}`}}>
+        <div style={{fontSize:15,fontWeight:800,color:TXT,marginBottom:4}}>Your data</div>
+        <div style={{fontSize:13,color:TXT3,lineHeight:1.5,marginBottom:10}}>Your reviews, tags and proposals are saved in this browser only. Download a backup before clearing your browser or switching device — then restore it anywhere.</div>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <button onClick={downloadBackup} style={{padding:"9px 14px",borderRadius:10,border:"none",background:ACCENT,color:"#fff",fontSize:13,fontWeight:800,cursor:"pointer"}}>⬇ Download backup</button>
+          <label style={{padding:"9px 14px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT,fontSize:13,fontWeight:800,cursor:"pointer",display:"inline-flex",alignItems:"center"}}>↥ Restore from file<input type="file" accept="application/json,.json" style={{display:"none"}} onChange={e=>{const f=e.target.files&&e.target.files[0];if(f)restoreBackup(f,()=>window.location.reload());}}/></label>
+        </div>
+      </div>
     </div>
   </div>);
 }
@@ -1135,7 +1158,7 @@ function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,
               {show.venue}{show.venueCode?<span style={{color:TXT3}}> · Venue {show.venueCode}</span>:null}
               {show.availability&&<> · <span style={{fontWeight:600,color:show.availability==="Sold Out"?"#EF4444":show.availability==="Limited"?"#FB923C":show.availability==="Available"?"#34D399":TXT2}}>{show.availability}</span></>}
             </div>
-            {(show.fullAddress||show.address)&&<div style={{fontSize:12,color:TXT2,marginTop:3}}><span style={{fontSize:16,filter:"saturate(1.4) brightness(1.15)",verticalAlign:"-2px"}}>📍</span> <a href={mapsUrl(show.fullAddress||show.address)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{color:"#60A5FA",fontWeight:600}}>{show.fullAddress||show.address}</a></div>}
+            {(show.fullAddress||show.address)&&<div style={{fontSize:12,color:TXT2,marginTop:3}}><span style={{fontSize:16,filter:"saturate(1.4) brightness(1.15)",verticalAlign:"-2px"}}>📍</span> <a href={mapsUrl(show)} target="_blank" rel="noopener noreferrer" onClick={e=>e.stopPropagation()} style={{color:"#60A5FA",fontWeight:600}}>{show.fullAddress||show.address}</a></div>}
             <GenrePills show={show}/>
           </div>
           <div style={{textAlign:"right",flexShrink:0,maxWidth:"46%"}}>
