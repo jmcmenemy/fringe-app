@@ -169,7 +169,7 @@ function icsForShow(s){const start=s.start||"00:00";const{endDate,end}=fEndInfo(
 function csvRows(text){const rows=[];let row=[],cell="",inQ=false;for(let i=0;i<text.length;i++){const ch=text[i];if(inQ){if(ch==='"'){if(text[i+1]==='"'){cell+='"';i++;}else inQ=false;}else cell+=ch;}else{if(ch==='"')inQ=true;else if(ch===","){row.push(cell);cell="";}else if(ch==="\n"){row.push(cell);rows.push(row);row=[];cell="";}else if(ch!=="\r")cell+=ch;}}if(cell!==""||row.length){row.push(cell);rows.push(row);}return rows;}
 function normCatTime(t){if(!t)return "";const m=String(t).trim().match(/^(\d{1,2}):(\d{2})/);return m?`${m[1].padStart(2,"0")}:${m[2]}`:"";}
 function normCatDur(d){if(!d)return "";const s=String(d).trim();let m=s.match(/^(\d{1,2}):(\d{2})(?::\d{2})?$/);if(m){const h=parseInt(m[1]),mm=parseInt(m[2]);return h>0?(mm>0?`${h}h${String(mm).padStart(2,"0")}`:`${h}h`):`${mm}m`;}m=s.match(/^(\d+)$/);if(m){const t=parseInt(m[1]);const h=Math.floor(t/60),mm=t%60;return h>0?(mm>0?`${h}h${String(mm).padStart(2,"0")}`:`${h}h`):`${mm}m`;}return s;}
-function parseCatalogCSV(text){const rows=csvRows(text);if(rows.length<2)return[];let hri=-1;for(let i=0;i<Math.min(rows.length,6);i++){if(rows[i].some(cell=>String(cell||"").trim().toLowerCase()==="title")){hri=i;break;}}if(hri<0)return[];const hdr=rows[hri].map(h=>String(h||"").trim().toLowerCase());const ix=names=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k;}return -1;};const iT=ix(["title"]),iV=ix(["venue"]),iVC=ix(["venue code","venue #"]),iW=ix(["website","link"]),iG=ix(["genre"]),iGT=ix(["genre tags"]),iA=ix(["artist"]),iSt=ix(["start time","time start","start"]),iEn=ix(["end time","time end","end"]),iDu=ix(["duration","length"]),iFP=ix(["first performance date","first date","first"]),iLP=ix(["last performance date","last date","last"]),iSub=ix(["subtitle"]),iDesc=ix(["description"]),iAge=ix(["age category","age"]),iCty=ix(["country"]),iPr=ix(["lowest full price","full price","price"]),iPrC=ix(["lowest concession price","concession price"]),iAddr=ix(["venue address"]),iPc=ix(["venue postcode","postcode"]),iLat=ix(["latitude","lat"]),iLng=ix(["longitude","long","lng"]),iWarn=ix(["warnings","warning"]);parseCatalogCSV.found={start:iSt>=0,end:iEn>=0,duration:iDu>=0};if(iT<0)return[];const out=[];for(let r=hri+1;r<rows.length;r++){const g=j=>j>=0?String(rows[r][j]||"").trim():"";const name=g(iT);if(!name)continue;const genres=[g(iG),g(iGT)].filter(Boolean).join(", ");const start=normCatTime(g(iSt));let end=normCatTime(g(iEn));const duration=normCatDur(g(iDu));if(!end&&start&&duration){const sm=timeToMinutes(start);const dm=(()=>{const m1=duration.match(/^(\d+)h(?:(\d{1,2}))?$/);if(m1)return parseInt(m1[1])*60+(m1[2]?parseInt(m1[2]):0);const m2=duration.match(/^(\d+)m$/);return m2?parseInt(m2[1]):0;})();if(sm!=null&&dm>0){const em=(sm+dm)%1440;end=`${String(Math.floor(em/60)).padStart(2,"0")}:${String(em%60).padStart(2,"0")}`;}}const _addr=g(iAddr),_pc=g(iPc),_fp=g(iPr),_la=parseFloat(g(iLat)),_ln=parseFloat(g(iLng)),_full=[_addr,_pc].filter(Boolean).join(", ");out.push({name,venue:g(iV),venueCode:g(iVC),link:g(iW),genres,genre:g(iG),artist:g(iA),organiser:g(iA)||g(iV)||"Fringe",start,end,duration,firstDate:g(iFP),lastDate:g(iLP),price:(_fp?(/^[\d.]+$/.test(_fp)?("\u00a3"+_fp):_fp):""),priceConc:g(iPrC),address:_full,fullAddress:_full,venuePostcode:_pc,latitude:isNaN(_la)?null:_la,longitude:isNaN(_ln)?null:_ln,lat:isNaN(_la)?null:_la,lng:isNaN(_ln)?null:_ln,age:g(iAge),country:g(iCty),description:g(iDesc),subtitle:g(iSub),warnings:g(iWarn),booked:0,fromCatalog:true});}return out;}
+function parseCatalogCSV(text){const rows=csvRows(text);if(rows.length<2)return[];let hri=-1;for(let i=0;i<Math.min(rows.length,6);i++){if(rows[i].some(cell=>String(cell||"").trim().toLowerCase()==="title")){hri=i;break;}}if(hri<0)return[];const hdr=rows[hri].map(h=>String(h||"").trim().toLowerCase());const ix=names=>{for(const n of names){const k=hdr.indexOf(n);if(k>=0)return k;}return -1;};const iT=ix(["title"]),iV=ix(["venue"]),iVC=ix(["venue code","venue #"]),iW=ix(["website","link"]),iG=ix(["genre"]),iGT=ix(["genre tags"]),iA=ix(["artist"]),iSt=ix(["start time","time start","start"]),iEn=ix(["end time","time end","end"]),iDu=ix(["duration","length"]),iFP=ix(["first performance date","first date","first"]),iLP=ix(["last performance date","last date","last"]),iSub=ix(["subtitle"]),iDesc=ix(["description"]),iAge=ix(["age category","age"]),iCty=ix(["country"]),iPr=ix(["lowest full price","full price","price"]),iPrC=ix(["lowest concession price","concession price"]),iAddr=ix(["venue address"]),iPc=ix(["venue postcode","postcode"]),iLat=ix(["latitude","lat"]),iLng=ix(["longitude","long","lng"]),iWarn=ix(["warnings","warning"]),iAType=ix(["artist type"]),iAcc=ix(["venue accessibility"]),iAccW=ix(["accessibility web"]);parseCatalogCSV.found={start:iSt>=0,end:iEn>=0,duration:iDu>=0};if(iT<0)return[];const out=[];for(let r=hri+1;r<rows.length;r++){const g=j=>j>=0?String(rows[r][j]||"").trim():"";const name=g(iT);if(!name)continue;const genres=[g(iG),g(iGT)].filter(Boolean).join(", ");const start=normCatTime(g(iSt));let end=normCatTime(g(iEn));const duration=normCatDur(g(iDu));if(!end&&start&&duration){const sm=timeToMinutes(start);const dm=(()=>{const m1=duration.match(/^(\d+)h(?:(\d{1,2}))?$/);if(m1)return parseInt(m1[1])*60+(m1[2]?parseInt(m1[2]):0);const m2=duration.match(/^(\d+)m$/);return m2?parseInt(m2[1]):0;})();if(sm!=null&&dm>0){const em=(sm+dm)%1440;end=`${String(Math.floor(em/60)).padStart(2,"0")}:${String(em%60).padStart(2,"0")}`;}}const _addr=g(iAddr),_pc=g(iPc),_fp=g(iPr),_la=parseFloat(g(iLat)),_ln=parseFloat(g(iLng)),_full=[_addr,_pc].filter(Boolean).join(", ");out.push({name,venue:g(iV),venueCode:g(iVC),link:g(iW),genres,genre:g(iG),artist:g(iA),organiser:g(iA)||g(iV)||"Fringe",start,end,duration,firstDate:g(iFP),lastDate:g(iLP),price:(_fp?(/^[\d.]+$/.test(_fp)?("\u00a3"+_fp):_fp):""),priceConc:g(iPrC),address:_full,fullAddress:_full,venuePostcode:_pc,latitude:isNaN(_la)?null:_la,longitude:isNaN(_ln)?null:_ln,lat:isNaN(_la)?null:_la,lng:isNaN(_ln)?null:_ln,age:g(iAge),country:g(iCty),description:g(iDesc),subtitle:g(iSub),warnings:g(iWarn),artistType:g(iAType),accessibility:[g(iAcc),g(iAccW)].filter(Boolean).join(" · "),booked:0,fromCatalog:true});}return out;}
 function fringeKeys(){const out=[];try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(k&&k.indexOf("fringe-")===0)out.push(k);}}catch(e){}return out;}
 function migrateData(fromV,toV){/* future key renames go here: read old key, write new, never delete blindly */}
 function downloadBackup(){try{const data={};fringeKeys().forEach(k=>{data[k]=localStorage.getItem(k);});const payload={app:"fringe-personal",version:APP_DATA_VERSION,savedAt:new Date().toISOString(),data};const blob=new Blob([JSON.stringify(payload,null,2)],{type:"application/json"});const url=URL.createObjectURL(blob);const a=document.createElement("a");a.href=url;a.download="fringe-planner-backup-"+new Date().toISOString().slice(0,10)+".json";document.body.appendChild(a);a.click();document.body.removeChild(a);setTimeout(()=>URL.revokeObjectURL(url),1500);}catch(e){alert("Backup failed: "+(e&&e.message||e));}}
@@ -259,7 +259,7 @@ function FringeCalendarInner(){
   const[shareMode,setShareMode]=useState(false);const[shareSel,setShareSel]=useState(()=>new Set());
   const toggleShareSel=s=>{const k=reviewKey(s);setShareSel(prev=>{const n=new Set(prev);if(n.has(k))n.delete(k);else n.add(k);return n;});};
   const copyBookingsLink=()=>{const sel=allShows.filter(s=>s.booked===1&&shareSel.has(reviewKey(s)));if(!sel.length){window.alert("Tick at least one booked show first.");return;}const token=encodeBookings(sel);const url=`${window.location.origin}${window.location.pathname}#b=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Share link with "+sel.length+" booking"+(sel.length!==1?"s":"")+" copied — send it to a friend:\n\n"+url);};
-  const[allCatalog,setAllCatalog]=useState(null);const[catState,setCatState]=useState("idle");
+  const[allCatalog,setAllCatalog]=useState(null);const[catState,setCatState]=useState("idle");const[catFilterOpen,setCatFilterOpen]=useState(false);const[catGenre,setCatGenre]=useState([]);const[catAge,setCatAge]=useState("");const[catCountry,setCatCountry]=useState("");const[catDur,setCatDur]=useState("");const[catStart,setCatStart]=useState("");const[catPMin,setCatPMin]=useState(0);const[catPMax,setCatPMax]=useState(null);const[catODrop,setCatODrop]=useState(null);const[catVenue,setCatVenue]=useState([]);const[catExp,setCatExp]=useState("");const[catAcc,setCatAcc]=useState(false);const[catDate,setCatDate]=useState("");const[catRunFrom,setCatRunFrom]=useState("");const[catRunTo,setCatRunTo]=useState("");
   const loadCatalog=()=>{if(allCatalog||catState==="loading")return;if(!ALL_CSV_URL){setCatState("unconfigured");return;}setCatState("loading");fetch(ALL_CSV_URL).then(r=>{if(!r.ok)throw 0;return r.text();}).then(t=>{const items=parseCatalogCSV(t);setAllCatalog(items);const f=parseCatalogCSV.found||{};setCatState(items.length?((items.some(s=>s.start))?"ready":(f.start?"ready-empty-times":"ready-no-time-cols")):"error");}).catch(()=>setCatState("error"));};
   useEffect(()=>{if(view==="jospicks")loadCatalog();},[view]);
   const[showFeedback,setShowFeedback]=useState(false);
@@ -346,6 +346,17 @@ function FringeCalendarInner(){
   const joPriceMax=useMemo(()=>{let m=0;joItems.forEach(s=>{const p=poundsOf(s.price);if(p>m)m=p;});return Math.max(5,Math.ceil(m));},[joItems]);
   const joCards=useMemo(()=>joItems.filter(s=>{if(!inOrg(s))return false;if(!inGenre(s))return false;if(!inTime(s))return false;if(searchQuery.trim()&&!matchesSearch(s,searchQuery))return false;if(joLaneFilter.length&&!joLaneFilter.includes(catOf(s)))return false;const p=poundsOf(s.price);if(p<joPMin)return false;if(joPMax!=null&&p>joPMax)return false;return true;}).slice().sort((a,b)=>String(a.name||"").localeCompare(String(b.name||""))),[joItems,joLanes,joLaneFilter,joPMin,joPMax,orgFilter,genreFilter,timeFilters,searchQuery]);
   const fData=view==="wishlist"?wishlist:view==="recs"?recommendations:view==="jospicks"?(allCatalog||[]):allShows;
+  const catGenreOpts=useMemo(()=>{const s=new Set();(allCatalog||[]).forEach(x=>genresOf(x).forEach(g=>g&&s.add(g)));return [...s].sort();},[allCatalog]);
+  const catAgeOpts=useMemo(()=>{const s=new Set();(allCatalog||[]).forEach(x=>x.age&&s.add(x.age));return [...s].sort();},[allCatalog]);
+  const catCountryOpts=useMemo(()=>{const s=new Set();(allCatalog||[]).forEach(x=>x.country&&s.add(x.country));return [...s].sort();},[allCatalog]);
+  const catPriceMax=useMemo(()=>{let m=0;(allCatalog||[]).forEach(x=>{const pp=poundsOf(x.price);if(pp>m)m=pp;});return Math.max(5,Math.ceil(m));},[allCatalog]);
+  const catVenueOpts=useMemo(()=>{const m={};(allCatalog||[]).forEach(x=>{if(x.venue){const k=(x.venueCode||x.venue);m[k]={value:k,label:(x.venueCode?"#"+x.venueCode+" — ":"")+x.venue+(x.venuePostcode?", "+x.venuePostcode:"")};}});return Object.values(m).sort((a,b)=>a.label.localeCompare(b.label));},[allCatalog]);
+  const catExpOpts=useMemo(()=>{const s=new Set();(allCatalog||[]).forEach(x=>x.artistType&&s.add(x.artistType));return [...s].sort();},[allCatalog]);
+  const toggleCatVenue=v=>setCatVenue(a=>a.includes(v)?a.filter(x=>x!==v):[...a,v]);
+  const catFiltersActive=catGenre.length||catAge||catCountry||catStart||catDur||catPMin>0||catPMax!=null||catVenue.length||catExp||catAcc||catDate||catRunFrom||catRunTo;
+  const toggleCatGenre=g=>setCatGenre(a=>a.includes(g)?a.filter(x=>x!==g):[...a,g]);
+  const catSelStyle={width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"};
+  const catFiltered=useMemo(()=>{const q=searchQuery.trim();return (allCatalog||[]).filter(s=>{if(q&&!matchesSearch(s,q))return false;if(catGenre.length&&!genresOf(s).some(g=>catGenre.includes(g)))return false;if(catAge&&s.age!==catAge)return false;if(catCountry&&s.country!==catCountry)return false;if(catStart){const b=bucketOf(timeToMinutes(s.start));if(b!==catStart)return false;}if(catDur){const d=durationMinutes(s);if(catDur==="short"&&d>60)return false;if(catDur==="med"&&(d<=60||d>120))return false;if(catDur==="long"&&d<=120)return false;}const pp=poundsOf(s.price);if(pp<catPMin)return false;if(catPMax!=null&&pp>catPMax)return false;if(catVenue.length&&!catVenue.includes(s.venueCode||s.venue))return false;if(catExp&&s.artistType!==catExp)return false;if(catAcc&&!s.accessibility)return false;if(catDate){if(s.firstDate&&s.lastDate){if(catDate<s.firstDate||catDate>s.lastDate)return false;}else if(s.firstDate){if(s.firstDate!==catDate)return false;}}if(catRunFrom&&s.lastDate&&s.lastDate<catRunFrom)return false;if(catRunTo&&s.firstDate&&s.firstDate>catRunTo)return false;return true;});},[allCatalog,searchQuery,catGenre,catAge,catCountry,catStart,catDur,catPMin,catPMax,catVenue,catExp,catAcc,catDate,catRunFrom,catRunTo]);
   const fHas={org:fData.some(s=>s&&s.organiser),genre:fData.some(s=>genresOf(s).length>0),people:fData.some(s=>((s&&s.attendees)||"").trim()),time:fData.some(s=>timeToMinutes(s&&s.start)!=null)};
   const joLiveRoute=typeof window!=="undefined"&&/[#&]jolive/.test(window.location.hash);
   const saveJoToSheet=()=>{const picks=[];Object.keys(joByLane).forEach(lane=>{if(lane==="all")return;joByLane[lane].forEach(s=>picks.push({lane,name:s.name,venue:s.venue,start:s.start,end:s.end,price:s.price,link:s.link||"",date:s.date||""}));});if(APPS_SCRIPT_URL){try{fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"jopicks",picks})});}catch{}}window.alert(JOPICKS_CSV_URL?("Saved! Your live, always-current link is:\n\n"+window.location.origin+window.location.pathname+"#jolive"):"Saved to the JoPicks tab of your sheet. To turn on the shareable live link, publish that tab as a CSV and add its URL (see the build notes).");};
@@ -494,7 +505,7 @@ Use empty string "" for any field you cannot find.`}]})});
         ):scrolled?(
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
             <span style={{fontSize:16,fontWeight:800,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Edinburgh Fringe</span>
-            {view!=="proposal"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"flex",alignItems:"center",gap:6}}><FilterIcon/> Filter view {showFilterMenu?"▲":"▼"}</button>}
+            {view!=="proposal"&&view!=="jospicks"&&view!=="list"&&view!=="wishlist"&&view!=="funfacts"&&view!=="calendar"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"flex",alignItems:"center",gap:6}}><FilterIcon/> Filter view {showFilterMenu?"▲":"▼"}</button>}
           </div>
         ):(
           <>
@@ -512,31 +523,28 @@ Use empty string "" for any field you cannot find.`}]})});
                     <option value="calendar">Calendar</option>
                     <option value="map">Map</option>
                     <option value="list">Bookings</option>
-                    <option value="wishlist">Current Wishlist</option>
-                    <option value="recs">Suggestions</option>
+                    <option value="wishlist">Wishlist</option>
                     <option value="jospicks">Browse catalogue</option>
                     <option value="proposal">Proposal</option>
-                    <option value="funfacts">Fun Facts</option>
+                    <option value="funfacts">Stats</option>
                   </select>
                 ):(<>
                   <TabBtn active={view==="calendar"} onClick={()=>setView("calendar")}>Calendar</TabBtn>
                   <TabBtn active={view==="map"} onClick={()=>setView("map")}>Map</TabBtn>
                   <TabBtn active={view==="list"} onClick={()=>setView("list")}>Bookings</TabBtn>
-                  <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Current Wishlist</TabBtn>
-                  <TabBtn active={view==="recs"} onClick={()=>setView("recs")}>Suggestions</TabBtn>
+                  <TabBtn active={view==="wishlist"} onClick={()=>setView("wishlist")}>Wishlist</TabBtn>
                   <TabBtn active={view==="jospicks"} onClick={()=>{setView("jospicks");loadCatalog();}}>Browse catalogue</TabBtn>
                   <TabBtn active={view==="proposal"} onClick={()=>setView("proposal")}>Proposal</TabBtn>
-                  <TabBtn active={view==="funfacts"} onClick={()=>setView("funfacts")}>Fun Facts</TabBtn>
-                  <button onClick={()=>setHelpOpen(true)} title="Help" style={{background:"none",border:"none",color:TXT2,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5,fontSize:14,fontWeight:700,padding:"6px 8px"}}><HelpIcon/> Help</button>
+                  <TabBtn active={view==="funfacts"} onClick={()=>setView("funfacts")}>Stats</TabBtn>
                 </>)}
-                {!isMobile&&<span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 12px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,whiteSpace:"nowrap"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>}
-                {view!=="proposal"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>}
+                {!isMobile&&view!=="funfacts"&&view!=="calendar"&&<span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 12px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,whiteSpace:"nowrap"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>}
+                {view!=="proposal"&&view!=="jospicks"&&view!=="list"&&view!=="wishlist"&&view!=="funfacts"&&view!=="calendar"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>}
               </div>
             </div>
           </>
         )}
-        {showFilterMenu&&view!=="proposal"&&(
-          <div style={isMobile?{position:"fixed",left:0,right:0,bottom:66,zIndex:69,background:BG,borderTop:`1px solid ${CARD_BORDER}`,padding:"12px 8px 14px",maxHeight:"56vh",overflowY:"auto",boxShadow:"0 -8px 30px rgba(0,0,0,0.55)"}:{padding:"4px 8px 12px",background:BG}}>
+        {(view==="calendar"||showFilterMenu)&&view!=="proposal"&&view!=="jospicks"&&view!=="list"&&(
+          <div style={(isMobile&&view!=="calendar")?{position:"fixed",left:0,right:0,bottom:66,zIndex:69,background:BG,borderTop:`1px solid ${CARD_BORDER}`,padding:"12px 8px 14px",maxHeight:"56vh",overflowY:"auto",boxShadow:"0 -8px 30px rgba(0,0,0,0.55)"}:{padding:"4px 8px 12px",background:BG}}>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
               {view!=="funfacts"&&<input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:220,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)"}}/>}
               {view!=="funfacts"&&fHas.org&&<MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>}
@@ -550,7 +558,7 @@ Use empty string "" for any field you cannot find.`}]})});
         )}
       </div>
 
-      {isMobile&&view!=="proposal"&&(()=>{const sz=48;const def={x:(typeof window!=="undefined"?window.innerWidth:400)-sz-12,y:(typeof window!=="undefined"?window.innerHeight:800)-sz-84};const pos=fabPos||def;return(
+      {isMobile&&view!=="proposal"&&view!=="jospicks"&&(()=>{const sz=48;const def={x:(typeof window!=="undefined"?window.innerWidth:400)-sz-12,y:(typeof window!=="undefined"?window.innerHeight:800)-sz-84};const pos=fabPos||def;return(
         <button
           onPointerDown={e=>{try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}fabDrag.current={sx:e.clientX,sy:e.clientY,ox:pos.x,oy:pos.y,moved:false};}}
           onPointerMove={e=>{const d=fabDrag.current;if(!d)return;const dx=e.clientX-d.sx,dy=e.clientY-d.sy;if(Math.abs(dx)+Math.abs(dy)>6)d.moved=true;if(d.moved)setFabPos({x:Math.max(4,Math.min(window.innerWidth-sz-4,d.ox+dx)),y:Math.max(4,Math.min(window.innerHeight-sz-4,d.oy+dy))});}}
@@ -562,11 +570,11 @@ Use empty string "" for any field you cannot find.`}]})});
       {isMobile&&(
         <div style={{position:"fixed",left:0,right:0,bottom:0,zIndex:70,background:"var(--card-solid)",borderTop:`1px solid ${CARD_BORDER}`,display:"flex",gap:8,alignItems:"center",padding:"8px 10px calc(8px + env(safe-area-inset-bottom))"}}>
           <div role="navigation" aria-label="Sections" style={{flex:1,display:"flex",gap:4,overflowX:"auto"}}>
-            {[["calendar","🗓","Calendar"],["map","🗺️","Map"],["list","🎫","Bookings"],["wishlist","💜","Current Wishlist"],["recs","✨","Suggestions"],["jospicks","⭐","Jo's Picks"],["proposal","📋","Proposal"],["funfacts","🎉","Fun Facts"]].map(([id,ic,lbl])=>(
+            {[["calendar","🗓","Calendar"],["map","🗺️","Map"],["list","🎫","Bookings"],["wishlist","💜","Wishlist"],["jospicks","⭐","Browse catalogue"],["proposal","📋","Proposal"],["funfacts","🎉","Stats"]].map(([id,ic,lbl])=>(
               <button key={id} onClick={()=>setView(id)} aria-label={lbl} title={lbl} style={{flex:"0 0 auto",width:42,height:42,display:"inline-flex",alignItems:"center",justifyContent:"center",borderRadius:11,border:`1px solid ${view===id?"#a855f7":CARD_BORDER}`,cursor:"pointer",fontSize:20,lineHeight:1,background:view===id?"rgba(168,85,247,0.25)":"transparent"}}>{ic}</button>
             ))}
           </div>
-          <button onClick={()=>setHelpOpen(true)} title="Help" style={{padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.1)",color:TXT,cursor:"pointer",display:"flex",alignItems:"center",flexShrink:0}}><HelpIcon/></button>
+          
         </div>
       )}
       {view==="list"&&shareMode&&(
@@ -644,7 +652,10 @@ Use empty string "" for any field you cannot find.`}]})});
             <span style={{fontSize:13,color:TXT2,fontWeight:700}}>Show one day:</span>
             <input type="date" value={bookingsDay} onChange={e=>setBookingsDay(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
             {bookingsDay&&<button onClick={()=>setBookingsDay("")} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>All days</button>}
-            <button onClick={()=>{setShareMode(v=>!v);setShareSel(new Set());}} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${shareMode?"#a855f7":CARD_BORDER}`,background:shareMode?"rgba(168,85,247,0.2)":"transparent",color:shareMode?"#C084FC":TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>{shareMode?"✕ Cancel sharing":"📤 Share bookings"}</button>
+            {fHas.org&&<MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>}
+            {people.length>0&&fHas.people&&<MultiDrop open={openDrop==="people"} onToggle={()=>setOpenDrop(openDrop==="people"?null:"people")} label="People" icon="👥" selected={peopleFilter} onSelect={togglePerson} onClear={()=>setPeopleFilter([])} options={people.map(nm=>({value:nm,label:nm}))}/>}
+            {fHas.time&&<MultiDrop open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>}
+            <button onClick={()=>{setShareMode(v=>!v);setShareSel(new Set());}} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${shareMode?"#a855f7":CARD_BORDER}`,background:shareMode?"rgba(168,85,247,0.2)":"transparent",color:shareMode?"#C084FC":TXT2,fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"normal",maxWidth:130,lineHeight:1.2,textAlign:"center"}}>{shareMode?"✕ Cancel sharing":"📤 Share bookings"}</button>
           </div>
           {bookingsDates.filter(dt=>!bookingsDay||dt===bookingsDay).map(date=>{const d=new Date(date+"T12:00:00");const dayShows=bookingsByDate[date]||[];if(!dayShows.length)return null;
             const timeSlots=[
@@ -679,7 +690,7 @@ Use empty string "" for any field you cannot find.`}]})});
       {view==="wishlist"&&(
         <div style={{padding:"16px 8px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,margin:"0 6px 16px",flexWrap:"wrap"}}>
-            <p style={{fontSize:14,color:TXT2,margin:0}}>{filteredWishlist.length} shows in wishlist</p>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button><p style={{fontSize:14,color:TXT2,margin:0}}>{filteredWishlist.length} shows in wishlist</p></div>
             <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:TXT2,fontWeight:600}}>Sort by
               <select value={wishlistSort} onChange={e=>setWishlistSort(e.target.value)} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
                 <option value="name">Show name</option>
@@ -818,6 +829,12 @@ Use empty string "" for any field you cannot find.`}]})});
         {n:f.longest?(f.longest.duration||"—"):"—",l:(f.longest?((past(f.longest)?"how long you spent watching ":"how long you will spend watching ")+f.longest.name):"your longest show")+" 🍿",cl:"#34D399"},
       ];return(
         <div style={{padding:"18px 14px 50px",maxWidth:760,margin:"0 auto"}}>
+          <div style={{marginBottom:20}}>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
+              <button onClick={()=>setPeopleFilter([])} style={{padding:"4px 10px",borderRadius:16,border:`1px solid ${peopleFilter.length===0?"transparent":CARD_BORDER}`,background:peopleFilter.length===0?ACCENT:"rgba(255,255,255,0.06)",color:peopleFilter.length===0?"#fff":TXT2,fontSize:11,fontWeight:700,cursor:"pointer"}}>Me</button>
+              {people.filter(nm=>nm.toLowerCase()!=="me").map(nm=>{const on=peopleFilter.length===1&&peopleFilter[0]===nm;return <button key={nm} onClick={()=>setPeopleFilter([nm])} style={{padding:"4px 10px",borderRadius:16,border:`1px solid ${on?"transparent":CARD_BORDER}`,background:on?ACCENT:"rgba(255,255,255,0.06)",color:on?"#fff":TXT2,fontSize:11,fontWeight:700,cursor:"pointer"}}>{nm}</button>;})}
+            </div>
+          </div>
           <h2 style={{fontSize:32,fontWeight:900,textAlign:"center",margin:"0 0 4px",letterSpacing:"-0.5px",lineHeight:1.15}}><span style={{marginRight:8}}>🎉</span><span style={{background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",filter:"drop-shadow(0 2px 12px rgba(168,85,247,0.45))"}}>Here are your 2026 Fringe stats!</span><span style={{marginLeft:8}}>🎉</span></h2>
           <p style={{textAlign:"center",color:TXT2,fontSize:14,marginBottom:22}}>A summary of your Fringe experience this year.</p>
           <div style={{display:"grid",gridTemplateColumns:isMobile?"repeat(2, 1fr)":"repeat(3, 1fr)",gap:12,alignItems:"stretch"}}>
@@ -842,11 +859,48 @@ Use empty string "" for any field you cannot find.`}]})});
       {view==="jospicks"&&(
         <div style={{padding:"14px 12px 50px",maxWidth:1000,margin:"0 auto"}}>
           <p style={{fontSize:13,color:TXT2,margin:"0 0 14px"}}>Browse the full Fringe programme{allCatalog?(" · "+allCatalog.length.toLocaleString()+" shows"):""}. Use the search box above to find shows.</p>
-          {catState==="loading"?<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"40px 10px"}}>Loading the full catalogue…</div>:catState==="error"?<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"40px 10px"}}>Couldn’t load the catalogue — check the All-tab CSV link.</div>:(()=>{const q=searchQuery.trim();const base=allCatalog||[];const filtered=q?base.filter(s=>matchesSearch(s,q)):base;const capped=filtered.slice(0,120);return (<>
+          {catState==="loading"?<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"40px 10px"}}>Loading the full catalogue…</div>:catState==="error"?<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"40px 10px"}}>Couldn’t load the catalogue — check the All-tab CSV link.</div>:(()=>{const base=allCatalog||[];const filtered=catFiltered;const capped=filtered.slice(0,120);return (<>
             <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(300px, 1fr))",gridAutoRows:"252px",gap:12}}>{capped.map(s=>(<JoCard key={s.name+"|"+s.venue} show={s} readOnly onOpen={()=>setSelectedShow(s)}/>))}</div>
             {filtered.length>capped.length&&<div style={{textAlign:"center",color:TXT3,fontSize:13,padding:"16px"}}>Showing the first 120 of {filtered.length.toLocaleString()} — search above to narrow.</div>}
             {filtered.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>{base.length?"No shows match your search.":"No shows found."}</div>}
           </>);})()}
+          <button onClick={()=>setCatFilterOpen(true)} aria-label="Filters" title="Filters" style={{position:"fixed",right:16,bottom:isMobile?92:26,zIndex:500,width:52,height:52,borderRadius:26,border:"none",cursor:"pointer",background:ACCENT,color:"#fff",boxShadow:"0 6px 20px rgba(168,85,247,0.5)",display:"flex",alignItems:"center",justifyContent:"center"}}>
+            <svg width={22} height={22} viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M3 4h18l-7 8v6l-4 2v-8z"/></svg>
+            {catFiltersActive&&<span style={{position:"absolute",top:9,right:9,width:9,height:9,borderRadius:5,background:"#fff",border:"1px solid #a855f7"}}/>}
+          </button>
+          {catFilterOpen&&(
+            <div onClick={()=>setCatFilterOpen(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.65)",zIndex:1300,display:"flex",alignItems:"flex-start",justifyContent:"center",padding:"40px 12px",overflowY:"auto"}}>
+              <div onClick={e=>e.stopPropagation()} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,maxWidth:760,width:"100%",padding:"16px 16px 24px",maxHeight:"85vh",overflowY:"auto",boxSizing:"border-box"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+                  <div style={{fontSize:18,fontWeight:900,color:TXT}}>Filters</div>
+                  <div style={{display:"flex",gap:8}}>
+                    {catFiltersActive&&<button onClick={()=>{setCatGenre([]);setCatAge("");setCatCountry("");setCatDur("");setCatStart("");setCatPMin(0);setCatPMax(null);setCatVenue([]);setCatExp("");setCatAcc(false);setCatDate("");setCatRunFrom("");setCatRunTo("");}} title="Reset filters" style={{width:36,height:36,borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:16,cursor:"pointer"}}>↺</button>}
+                    <button onClick={()=>setCatFilterOpen(false)} aria-label="Close" style={{width:36,height:36,borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:18,cursor:"pointer"}}>✕</button>
+                  </div>
+                </div>
+                <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="🔎 Search shows, artists, venues…" style={{width:"100%",boxSizing:"border-box",padding:"11px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,outline:"none",marginBottom:10}}/>
+                <div style={{marginBottom:10}}><MultiDrop open={catODrop==="genre"} onToggle={()=>setCatODrop(catODrop==="genre"?null:"genre")} label="All genres" icon="🎭" selected={catGenre} onSelect={toggleCatGenre} onClear={()=>setCatGenre([])} options={catGenreOpts.map(g=>({value:g,label:g}))}/></div><div style={{marginBottom:10}}><MultiDrop open={catODrop==="venue"} onToggle={()=>setCatODrop(catODrop==="venue"?null:"venue")} label="Venue (name, # or postcode)" icon="📍" selected={catVenue} onSelect={toggleCatVenue} onClear={()=>setCatVenue([])} options={catVenueOpts}/></div>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:8,marginBottom:12}}>
+                  <select value={catAge} onChange={e=>setCatAge(e.target.value)} aria-label="Age" style={catSelStyle}><option value="">Any age</option>{catAgeOpts.map(a=><option key={a} value={a}>{a}</option>)}</select>
+                  <select value={catCountry} onChange={e=>setCatCountry(e.target.value)} aria-label="Country" style={catSelStyle}><option value="">All countries</option>{catCountryOpts.map(cc=><option key={cc} value={cc}>{cc}</option>)}</select>
+                  <select value={catDur} onChange={e=>setCatDur(e.target.value)} aria-label="Duration" style={catSelStyle}><option value="">Any duration</option><option value="short">Under 1 hour</option><option value="med">1–2 hours</option><option value="long">Over 2 hours</option></select>
+                  <select value={catStart} onChange={e=>setCatStart(e.target.value)} aria-label="Start time" style={catSelStyle}><option value="">Any start</option><option value="morning">🌅 Morning</option><option value="afternoon">☀️ Afternoon</option><option value="evening">🌆 Evening</option><option value="late">🌙 Late</option></select>
+                  <select value={catExp} onChange={e=>setCatExp(e.target.value)} aria-label="Experience level" style={catSelStyle}><option value="">Experience level</option>{catExpOpts.map(x=><option key={x} value={x}>{x}</option>)}</select>
+                </div>
+                <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:8,marginBottom:12}}>
+                  <label style={{display:"flex",flexDirection:"column",gap:4,fontSize:11,color:TXT3,fontWeight:700}}>On date<input type="date" value={catDate} onChange={e=>setCatDate(e.target.value)} style={catSelStyle}/></label>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}><span style={{fontSize:11,color:TXT3,fontWeight:700}}>Runs between</span><div style={{display:"flex",gap:6}}><input type="date" value={catRunFrom} onChange={e=>setCatRunFrom(e.target.value)} style={catSelStyle}/><input type="date" value={catRunTo} onChange={e=>setCatRunTo(e.target.value)} style={catSelStyle}/></div></div>
+                </div>
+                <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:TXT2,cursor:"pointer",marginBottom:12}}><input type="checkbox" checked={catAcc} onChange={e=>setCatAcc(e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>♿ Only shows with accessibility info</label>
+                <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap",background:"rgba(255,255,255,0.03)",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:"8px 12px"}}>
+                  <span style={{fontSize:12,fontWeight:800,color:TXT,whiteSpace:"nowrap"}}>💷 Price £{catPMin}–£{catPMax==null?catPriceMax:catPMax}{catPMax==null?"+":""}</span>
+                  <input type="range" min={0} max={catPriceMax} value={catPMin} onChange={e=>{const v=Number(e.target.value);setCatPMin(Math.min(v,catPMax==null?catPriceMax:catPMax));}} style={{flex:1,minWidth:80,accentColor:"#A855F7"}}/>
+                  <input type="range" min={0} max={catPriceMax} value={catPMax==null?catPriceMax:catPMax} onChange={e=>{const v=Number(e.target.value);setCatPMax(v>=catPriceMax?null:Math.max(v,catPMin));}} style={{flex:1,minWidth:80,accentColor:"#A855F7"}}/>
+                </div>
+                <button onClick={()=>setCatFilterOpen(false)} style={{width:"100%",padding:"13px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:15,fontWeight:800,cursor:"pointer"}}>Show {catFiltered.length.toLocaleString()} shows</button>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
