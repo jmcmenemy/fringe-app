@@ -206,6 +206,10 @@ function FringeCalendarInner(){
   const markerLayer=useRef(null);
   const dragStart=useRef(null);
   const[addOpenId,setAddOpenId]=useState(null);
+  const[priceOverrides,setPriceOverrides]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-price-overrides")||"{}");} catch{return {};}});
+  const[editingPrice,setEditingPrice]=useState(null);
+  const savePriceOverride=(show,val)=>{const k=reviewKey(show);const next={...priceOverrides,[k]:val};setPriceOverrides(next);try{localStorage.setItem("fringe-price-overrides",JSON.stringify(next));}catch{}};
+  const getPrice=s=>{const ov=priceOverrides[reviewKey(s)];return ov!=null?ov:s.price;};
   const[reviews,setReviews]=useState(()=>{try{return JSON.parse(localStorage.getItem("fringe-reviews")||"{}");}catch{return{};}});
   const reviewKey=s=>`${s.name}|${s.date||""}|${s.start||""}`.toLowerCase();
   const setReview=(s,v)=>setReviews(prev=>{const next={...prev,[reviewKey(s)]:v};try{localStorage.setItem("fringe-reviews",JSON.stringify(next));}catch{}return next;});
@@ -227,7 +231,7 @@ function FringeCalendarInner(){
   const newProposal=()=>saveProposals([...proposals,{id:"p"+Date.now(),title:"Proposed day",date:"",comment:"",shows:[]}]);
   const updateProposal=(id,patch)=>saveProposals(proposals.map(p=>p.id===id?{...p,...patch}:p));
   const deleteProposal=id=>saveProposals(proposals.filter(p=>p.id!==id));
-  const addToProposal=(id,show)=>saveProposals(proposals.map(p=>{if(p.id!==id)return p;const snap={name:show.name,venue:show.venue,start:show.start,end:show.end,price:show.price,address:show.address,organiser:show.organiser,booked:show.booked?1:0,link:show.link,genres:show.genres||"",fullAddress:show.fullAddress||show.address||""};if((p.shows||[]).some(x=>x.name===snap.name&&x.start===snap.start))return p;return{...p,shows:[...(p.shows||[]),snap]};}));
+  const addToProposal=(id,show)=>saveProposals(proposals.map(p=>{if(p.id!==id)return p;const snap={name:show.name,venue:show.venue,venueCode:show.venueCode||"",start:show.start,end:show.end,price:show.price,duration:show.duration||"",address:show.address,organiser:show.organiser,booked:show.booked?1:0,link:show.link,genres:show.genres||"",fullAddress:show.fullAddress||show.address||"",lat:show.lat!=null?show.lat:null,lng:show.lng!=null?show.lng:null};if((p.shows||[]).some(x=>x.name===snap.name&&x.start===snap.start))return p;return{...p,shows:[...(p.shows||[]),snap]};}));
   const removeFromProposal=(id,idx)=>saveProposals(proposals.map(p=>p.id===id?{...p,shows:(p.shows||[]).filter((_,i)=>i!==idx)}:p));
   const shareProposal=prop=>{const token=encodeProposals([{title:prop.title,date:prop.date,comment:prop.comment,shows:dayShowsFor(prop)}]);const url=`${window.location.origin}${window.location.pathname}#p=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Read-only link copied to clipboard:\n\n"+url);};
   const shareAllProposals=()=>{if(!proposals.length){window.alert("Add a proposed day first.");return;}const token=encodeProposals(proposals.map(p=>({title:p.title,date:p.date,comment:p.comment,shows:dayShowsFor(p)})));const url=`${window.location.origin}${window.location.pathname}#p=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("One link with all "+proposals.length+" option"+(proposals.length!==1?"s":"")+" copied:\n\n"+url);};
@@ -264,7 +268,7 @@ function FringeCalendarInner(){
   const[shareMode,setShareMode]=useState(false);const[shareSel,setShareSel]=useState(()=>new Set());
   const toggleShareSel=s=>{const k=reviewKey(s);setShareSel(prev=>{const n=new Set(prev);if(n.has(k))n.delete(k);else n.add(k);return n;});};
   const copyBookingsLink=()=>{const sel=allShows.filter(s=>s.booked===1&&shareSel.has(reviewKey(s)));if(!sel.length){window.alert("Tick at least one booked show first.");return;}const token=encodeBookings(sel);const url=`${window.location.origin}${window.location.pathname}#b=${token}`;try{navigator.clipboard.writeText(url);}catch{}window.alert("Share link with "+sel.length+" booking"+(sel.length!==1?"s":"")+" copied — send it to a friend:\n\n"+url);};
-  const[allCatalog,setAllCatalog]=useState(null);const[catState,setCatState]=useState("idle");const[catFilterOpen,setCatFilterOpen]=useState(false);const[catGenre,setCatGenre]=useState([]);const[catAge,setCatAge]=useState("");const[catCountry,setCatCountry]=useState("");const[catDur,setCatDur]=useState("");const[catStart,setCatStart]=useState("");const[catPMin,setCatPMin]=useState(0);const[catPMax,setCatPMax]=useState(null);const[catODrop,setCatODrop]=useState(null);const[catVenue,setCatVenue]=useState([]);const[catExp,setCatExp]=useState("");const[catAcc,setCatAcc]=useState(false);const[catDate,setCatDate]=useState("");const[catRunFrom,setCatRunFrom]=useState("");const[catRunTo,setCatRunTo]=useState("");const[catView,setCatView]=useState("cards");const[catSort,setCatSort]=useState({key:"name",dir:1});
+  const[allCatalog,setAllCatalog]=useState(null);const[catState,setCatState]=useState("idle");const[catFilterOpen,setCatFilterOpen]=useState(false);const[catGenre,setCatGenre]=useState([]);const[catAge,setCatAge]=useState("");const[catCountry,setCatCountry]=useState("");const[catDur,setCatDur]=useState("");const[catStart,setCatStart]=useState("");const[catPMin,setCatPMin]=useState(0);const[catPMax,setCatPMax]=useState(null);const[catODrop,setCatODrop]=useState(null);const[catVenue,setCatVenue]=useState([]);const[catExp,setCatExp]=useState("");const[catAcc,setCatAcc]=useState(false);const[catDate,setCatDate]=useState("");const[catRunFrom,setCatRunFrom]=useState("");const[catRunTo,setCatRunTo]=useState("");const[catView,setCatView]=useState("cards");const[cyoQuery,setCyoQuery]=useState("");const[cyoResults,setCyoResults]=useState(null);const[cyoLoading,setCyoLoading]=useState(false);const[catSort,setCatSort]=useState({key:"name",dir:1});
   const loadCatalog=()=>{if(allCatalog||catState==="loading")return;if(!ALL_CSV_URL){setCatState("unconfigured");return;}setCatState("loading");fetch(ALL_CSV_URL).then(r=>{if(!r.ok)throw 0;return r.text();}).then(t=>{const items=parseCatalogCSV(t);setAllCatalog(items);const f=parseCatalogCSV.found||{};setCatState(items.length?((items.some(s=>s.start))?"ready":(f.start?"ready-empty-times":"ready-no-time-cols")):"error");}).catch(()=>setCatState("error"));};
   useEffect(()=>{if(view==="jospicks")loadCatalog();},[view]);
   const[showFeedback,setShowFeedback]=useState(false);
@@ -361,7 +365,7 @@ function FringeCalendarInner(){
   const toggleCatVenue=v=>setCatVenue(a=>a.includes(v)?a.filter(x=>x!==v):[...a,v]);
   const catFiltersActive=catGenre.length||catAge||catCountry||catStart||catDur||catPMin>0||catPMax!=null||catVenue.length||catExp||catAcc||catDate||catRunFrom||catRunTo;
   const toggleCatGenre=g=>setCatGenre(a=>a.includes(g)?a.filter(x=>x!==g):[...a,g]);
-  const catSelStyle={width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"};
+  const catSelStyle={width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none",colorScheme:theme==="light"?"light":"dark"};
   const catFiltered=useMemo(()=>{const q=searchQuery.trim();return (allCatalog||[]).filter(s=>{if(q&&!matchesSearch(s,q))return false;if(catGenre.length&&!genresOf(s).some(g=>catGenre.includes(g)))return false;if(catAge&&s.age!==catAge)return false;if(catCountry&&s.country!==catCountry)return false;if(catStart){const b=bucketOf(timeToMinutes(s.start));if(b!==catStart)return false;}if(catDur){const d=durationMinutes(s);if(catDur==="short"&&d>60)return false;if(catDur==="med"&&(d<=60||d>120))return false;if(catDur==="long"&&d<=120)return false;}const pp=poundsOf(s.price);if(pp<catPMin)return false;if(catPMax!=null&&pp>catPMax)return false;if(catVenue.length&&!catVenue.includes(s.venueCode||s.venue))return false;if(catExp&&s.artistType!==catExp)return false;if(catAcc&&!s.accessibility)return false;if(catDate){if(s.firstDate&&s.lastDate){if(catDate<s.firstDate||catDate>s.lastDate)return false;}else if(s.firstDate){if(s.firstDate!==catDate)return false;}}if(catRunFrom&&s.lastDate&&s.lastDate<catRunFrom)return false;if(catRunTo&&s.firstDate&&s.firstDate>catRunTo)return false;return true;});},[allCatalog,searchQuery,catGenre,catAge,catCountry,catStart,catDur,catPMin,catPMax,catVenue,catExp,catAcc,catDate,catRunFrom,catRunTo]);
   const fHas={org:fData.some(s=>s&&s.organiser),genre:fData.some(s=>genresOf(s).length>0),people:fData.some(s=>((s&&s.attendees)||"").trim()),time:fData.some(s=>timeToMinutes(s&&s.start)!=null)};
   const joLiveRoute=typeof window!=="undefined"&&/[#&]jolive/.test(window.location.hash);
@@ -511,7 +515,6 @@ Use empty string "" for any field you cannot find.`}]})});
         ):scrolled?(
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"9px 14px",borderBottom:`1px solid ${CARD_BORDER}`,background:BG}}>
             <span style={{fontSize:16,fontWeight:800,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent"}}>Edinburgh Fringe</span>
-            {view!=="proposal"&&view!=="jospicks"&&view!=="list"&&view!=="wishlist"&&view!=="funfacts"&&view!=="calendar"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 14px",borderRadius:20,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"flex",alignItems:"center",gap:6}}><FilterIcon/> Filter view {showFilterMenu?"▲":"▼"}</button>}
           </div>
         ):(
           <>
@@ -525,7 +528,7 @@ Use empty string "" for any field you cannot find.`}]})});
               <h1 style={{fontSize:40,fontWeight:900,letterSpacing:"-1px",margin:0,background:ACCENT,WebkitBackgroundClip:"text",WebkitTextFillColor:"transparent",lineHeight:1.1}}>FRINGE 2026</h1>
               <div style={{display:"flex",gap:4,justifyContent:"center",flexWrap:"wrap",alignItems:"center",marginTop:14}}>
                 {isMobile?(
-                  <select value={view} onChange={e=>setView(e.target.value)} style={{padding:"9px 16px",borderRadius:20,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.12)",color:TXT,fontSize:14,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
+                  <select value={view} onChange={e=>setView(e.target.value)} style={{padding:"9px 16px",borderRadius:20,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.12)",color:TXT,fontSize:14,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:theme==="light"?"light":"dark"}}>
                     <option value="calendar">Calendar</option>
                     <option value="map">Map</option>
                     <option value="list">Bookings</option>
@@ -543,28 +546,26 @@ Use empty string "" for any field you cannot find.`}]})});
                   <TabBtn active={view==="proposal"} onClick={()=>setView("proposal")}>Proposal</TabBtn>
                   <TabBtn active={view==="funfacts"} onClick={()=>setView("funfacts")}>Stats</TabBtn>
                 </>)}
-                {!isMobile&&view!=="funfacts"&&view!=="calendar"&&<span style={{fontSize:11,color:TXT2,fontWeight:600,padding:"5px 12px",borderRadius:14,background:"rgba(255,255,255,0.06)",lineHeight:1.35,whiteSpace:"nowrap"}}><span style={{color:TXT,fontWeight:800}}>{bookedCount}</span> shows booked across <span style={{color:TXT,fontWeight:800}}>{bookedDays}</span> {bookedDays===1?"day":"days"}</span>}
-                {view!=="proposal"&&view!=="jospicks"&&view!=="list"&&view!=="wishlist"&&view!=="funfacts"&&view!=="calendar"&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:12,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>}
               </div>
             </div>
           </>
         )}
-        {((view==="calendar"&&!isMobile)||showFilterMenu)&&view!=="proposal"&&view!=="jospicks"&&(isMobile||view!=="list")&&(
-          <div style={isMobile?{position:"fixed",left:0,right:0,bottom:66,zIndex:69,background:BG,borderTop:`1px solid ${CARD_BORDER}`,padding:"12px 8px 14px",maxHeight:"56vh",overflowY:"auto",boxShadow:"0 -8px 30px rgba(0,0,0,0.55)"}:{padding:"4px 8px 12px",background:BG}}>
+        {showFilterMenu&&view!=="proposal"&&view!=="jospicks"&&(
+          <div style={{position:"fixed",left:isMobile?0:"auto",right:isMobile?0:16,bottom:isMobile?66:16,zIndex:69,background:BG,borderTop:`1px solid ${CARD_BORDER}`,padding:"12px 8px 14px",maxHeight:"56vh",overflowY:"auto",boxShadow:"0 -8px 30px rgba(0,0,0,0.55)",borderRadius:isMobile?0:16,maxWidth:isMobile?"100%":600}}>
             <div style={{display:"flex",gap:8,flexWrap:"wrap",alignItems:"center",justifyContent:"center"}}>
-              {view!=="funfacts"&&<input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:220,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)"}}/>}
-              {view!=="funfacts"&&fHas.org&&<MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>}
-              {view!=="funfacts"&&fHas.genre&&availableGenres.length>0&&<MultiDrop open={openDrop==="genre"} onToggle={()=>setOpenDrop(openDrop==="genre"?null:"genre")} label="Genre" selected={genreFilter} onSelect={toggleGenre} onClear={()=>setGenreFilter([])} options={availableGenres.map(gn=>({value:gn,label:gn}))}/>}
+              {view!=="funfacts"&&<input type="text" placeholder="Search everything..." value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:13,width:220,outline:"none",color:TXT,background:"var(--card)"}}/>}
+              {view!=="funfacts"&&fHas.org&&<MultiDrop up={isMobile} open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>}
+              {view!=="funfacts"&&fHas.genre&&availableGenres.length>0&&<MultiDrop up={isMobile} open={openDrop==="genre"} onToggle={()=>setOpenDrop(openDrop==="genre"?null:"genre")} label="Genre" selected={genreFilter} onSelect={toggleGenre} onClear={()=>setGenreFilter([])} options={availableGenres.map(gn=>({value:gn,label:gn}))}/>}
               {people.length>0&&fHas.people&&(
-                <MultiDrop open={openDrop==="people"} onToggle={()=>setOpenDrop(openDrop==="people"?null:"people")} label="People" icon="👥" selected={peopleFilter} onSelect={togglePerson} onClear={()=>setPeopleFilter([])} options={people.map(nm=>({value:nm,label:nm}))}/>
+                <MultiDrop up={isMobile} open={openDrop==="people"} onToggle={()=>setOpenDrop(openDrop==="people"?null:"people")} label="People" icon="👥" selected={peopleFilter} onSelect={togglePerson} onClear={()=>setPeopleFilter([])} options={people.map(nm=>({value:nm,label:nm}))}/>
               )}
-              {view!=="funfacts"&&fHas.time&&<MultiDrop open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>}
+              {view!=="funfacts"&&fHas.time&&<MultiDrop up={isMobile} open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>}
             </div>
           </div>
         )}
       </div>
 
-      {isMobile&&view!=="proposal"&&view!=="jospicks"&&(()=>{const sz=48;const def={x:(typeof window!=="undefined"?window.innerWidth:400)-sz-12,y:(typeof window!=="undefined"?window.innerHeight:800)-sz-84};const pos=fabPos||def;return(
+      {view!=="proposal"&&view!=="jospicks"&&(()=>{const sz=48;const def={x:(typeof window!=="undefined"?window.innerWidth:400)-sz-12,y:(typeof window!=="undefined"?window.innerHeight:800)-sz-84};const pos=fabPos||def;return(
         <button
           onPointerDown={e=>{try{e.currentTarget.setPointerCapture(e.pointerId);}catch{}fabDrag.current={sx:e.clientX,sy:e.clientY,ox:pos.x,oy:pos.y,moved:false};}}
           onPointerMove={e=>{const d=fabDrag.current;if(!d)return;const dx=e.clientX-d.sx,dy=e.clientY-d.sy;if(Math.abs(dx)+Math.abs(dy)>6)d.moved=true;if(d.moved)setFabPos({x:Math.max(4,Math.min(window.innerWidth-sz-4,d.ox+dx)),y:Math.max(4,Math.min(window.innerHeight-sz-4,d.oy+dy))});}}
@@ -594,7 +595,7 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* CALENDAR */}
       {view==="calendar"&&(
         <div style={{padding:"8px 0"}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 8px 12px",position:"relative"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"6px 8px 10px",position:"sticky",top:52,zIndex:25,background:BG}}>
             <NavBtn disabled={!customRange&&weekIdx===0} onClick={navPrev}>‹</NavBtn>
             <button onClick={()=>{setPickStart(weekDates[0]);setPickEnd(weekDates[weekDates.length-1]);setDatePickerOpen(o=>!o);}} title="Tap to choose your own dates" style={{fontSize:17,fontWeight:700,color:TXT,background:"none",border:"none",cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6,padding:"4px 8px",borderRadius:10}}>{(()=>{const a=new Date(weekDates[0]+"T12:00:00");const b=new Date(weekDates[weekDates.length-1]+"T12:00:00");return weekDates.length===1?`${a.getDate()} ${MONTHS[a.getMonth()]}`:`${a.getDate()} ${MONTHS[a.getMonth()]} – ${b.getDate()} ${MONTHS[b.getMonth()]}`;})()} <span style={{fontSize:11,color:TXT2}}>▾</span></button>
             <NavBtn disabled={!customRange&&weekIdx>=weeks.length-1} onClick={navNext}>›</NavBtn>
@@ -602,9 +603,9 @@ Use empty string "" for any field you cannot find.`}]})});
               <div style={{position:"absolute",top:"100%",left:"50%",transform:"translateX(-50%)",zIndex:60,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:14,padding:14,boxShadow:"0 12px 40px rgba(0,0,0,0.6)",minWidth:250}}>
                 <div style={{fontSize:12,color:TXT2,marginBottom:10,fontWeight:600,textAlign:"center"}}>Pick your dates (1–10 days)</div>
                 <div style={{display:"flex",gap:8,alignItems:"center",justifyContent:"center",flexWrap:"wrap"}}>
-                  <input type="date" value={pickStart} onChange={e=>setPickStart(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                  <input type="date" value={pickStart} onChange={e=>setPickStart(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none",colorScheme:theme==="light"?"light":"dark"}}/>
                   <span style={{color:TXT2,fontSize:13}}>to</span>
-                  <input type="date" value={pickEnd} onChange={e=>setPickEnd(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                  <input type="date" value={pickEnd} onChange={e=>setPickEnd(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none",colorScheme:theme==="light"?"light":"dark"}}/>
                 </div>
                 <div style={{display:"flex",gap:6,marginTop:12,justifyContent:"center",flexWrap:"wrap"}}>
                   <button onClick={()=>{setCustomRange({start:todayStr,end:todayStr});setDatePickerOpen(false);}} style={{padding:"8px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(168,85,247,0.18)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer"}}>Today</button>
@@ -627,11 +628,11 @@ Use empty string "" for any field you cannot find.`}]})});
               </div>
               <div style={{display:"grid",gridTemplateColumns:`48px repeat(${weekDates.length}, 1fr)`,position:"relative",height:totalSlots*SH}}>
                 <div style={{position:"sticky",left:0,zIndex:10,background:BG}}>
-                  {Array.from({length:totalSlots*2},(_,i)=>{const mins=START_H*60+i*30;const dm=mins>=24*60?mins-24*60:mins;const half=i%2===1;return <div key={i} style={{position:"absolute",top:i*(SH/2)-7,right:6,fontSize:half?10:14,fontWeight:half?600:800,color:half?"rgba(241,240,247,0.4)":"rgba(241,240,247,0.9)",lineHeight:1}}>{half?":30":formatHour(dm)}</div>;})}
+                  {Array.from({length:totalSlots*2},(_,i)=>{const mins=START_H*60+i*30;const dm=mins>=24*60?mins-24*60:mins;const half=i%2===1;return <div key={i} style={{position:"absolute",top:i*(SH/2)-7,right:6,fontSize:half?10:14,fontWeight:half?600:800,color:half?TXT3:TXT2,lineHeight:1}}>{half?":30":formatHour(dm)}</div>;})}
                 </div>
                 {weekDates.map(ds=>{const dayShows=showsByDate[ds]||[];const isToday=ds===todayStr;const timeLineTop=(()=>{if(!isToday)return null;let m=nowMinutes;if(m<START_H*60)m+=24*60;if(m>=END_H*60)return null;return((m-START_H*60)/60)*SH;})();return(
-                  <div key={ds} style={{position:"relative",borderLeft:`1px solid rgba(255,255,255,0.05)`,height:totalSlots*SH,background:isToday?"rgba(168,85,247,0.06)":"transparent"}}>
-                    {Array.from({length:totalSlots*2},(_,i)=>(<div key={i} style={{position:"absolute",top:i*(SH/2),left:0,right:0,height:1,background:i%2===0?"rgba(255,255,255,0.09)":"rgba(255,255,255,0.035)"}}/>))}
+                  <div key={ds} style={{position:"relative",borderLeft:`1px solid ${CARD_BORDER}`,height:totalSlots*SH,background:isToday?"rgba(168,85,247,0.06)":"transparent"}}>
+                    {Array.from({length:totalSlots*2},(_,i)=>(<div key={i} style={{position:"absolute",top:i*(SH/2),left:0,right:0,height:1,background:i%2===0?CARD_BORDER:"rgba(128,128,128,0.12)"}}/>))}
                     {timeLineTop!==null&&<div style={{position:"absolute",top:timeLineTop,left:0,right:0,height:2,background:"#C084FC",zIndex:5,boxShadow:"0 0 8px rgba(192,132,252,0.6)"}}><div style={{position:"absolute",left:-3,top:-3,width:8,height:8,borderRadius:4,background:"#C084FC"}}/></div>}
                     {dayShows.map((show,si)=>{const c=gc(show.organiser);const top=showTop(show);const height=showHeight(show);return(
                       <div key={si} onClick={()=>setSelectedShow(show)} style={{
@@ -654,14 +655,14 @@ Use empty string "" for any field you cannot find.`}]})});
       {/* VIEW ALL */}
       {view==="list"&&(
         <div style={{padding:"8px 0"}}>
-          <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center",padding:"0 12px 12px",flexWrap:"wrap"}}>
-            <span style={{fontSize:13,color:TXT2,fontWeight:700}}>Show one day:</span>
-            <input type="date" value={bookingsDay} onChange={e=>setBookingsDay(e.target.value)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
-            {bookingsDay&&<button onClick={()=>setBookingsDay("")} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:13,fontWeight:700,cursor:"pointer"}}>All days</button>}
-            {!isMobile&&fHas.org&&<MultiDrop open={openDrop==="org"} onToggle={()=>setOpenDrop(openDrop==="org"?null:"org")} label="Organisers" selected={orgFilter} onSelect={toggleOrg} onClear={()=>setOrgFilter([])} options={organiserChips.map(o=>({value:o,label:o,dot:gc(o).bg}))}/>}
-            {!isMobile&&people.length>0&&fHas.people&&<MultiDrop open={openDrop==="people"} onToggle={()=>setOpenDrop(openDrop==="people"?null:"people")} label="People" icon="👥" selected={peopleFilter} onSelect={togglePerson} onClear={()=>setPeopleFilter([])} options={people.map(nm=>({value:nm,label:nm}))}/>}
-            {!isMobile&&fHas.time&&<MultiDrop open={openDrop==="time"} onToggle={()=>setOpenDrop(openDrop==="time"?null:"time")} label="Time" selected={timeFilters} onSelect={toggleTime} onClear={()=>setTimeFilters([])} options={[{value:"morning",label:"🌅 Morning"},{value:"afternoon",label:"☀️ Afternoon"},{value:"evening",label:"🌆 Evening"},{value:"late",label:"🌙 Late"}]}/>}
-            <button onClick={()=>{setShareMode(v=>!v);setShareSel(new Set());}} style={{padding:"6px 12px",borderRadius:10,border:`1px solid ${shareMode?"#a855f7":CARD_BORDER}`,background:shareMode?"rgba(168,85,247,0.2)":"transparent",color:shareMode?"#C084FC":TXT2,fontSize:13,fontWeight:700,cursor:"pointer",whiteSpace:"normal",maxWidth:130,lineHeight:1.2,textAlign:"center"}}>{shareMode?"✕ Cancel sharing":"📤 Share bookings"}</button>
+          <div style={{display:"flex",alignItems:"center",gap:8,justifyContent:"center",padding:"0 12px 12px"}}>
+            {!isMobile&&<span style={{fontSize:13,color:TXT2,fontWeight:700}}>Show one day:</span>}
+            <div style={{display:"inline-flex",alignItems:"center",gap:0,borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflow:"hidden"}}>
+              <span style={{padding:"8px 10px",fontSize:13,display:"inline-flex",alignItems:"center",gap:5,color:TXT2}}>📅</span>
+              <input type="date" value={bookingsDay} onChange={e=>setBookingsDay(e.target.value)} style={{padding:"8px 10px",border:"none",background:"transparent",color:TXT,fontSize:13,outline:"none",colorScheme:theme==="light"?"light":"dark"}}/>
+              {bookingsDay&&<button onClick={()=>setBookingsDay("")} style={{padding:"6px 10px",border:"none",borderLeft:`1px solid ${CARD_BORDER}`,background:"rgba(128,128,128,0.1)",color:TXT2,fontSize:12,fontWeight:700,cursor:"pointer",whiteSpace:"nowrap"}}>✕</button>}
+            </div>
+            <button onClick={()=>{setShareMode(v=>!v);setShareSel(new Set());}} style={{padding:"8px 14px",borderRadius:12,border:`1px solid ${shareMode?"#a855f7":CARD_BORDER}`,background:shareMode?"rgba(168,85,247,0.2)":"transparent",color:shareMode?"#C084FC":TXT2,fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5}}>{shareMode?"✕ Cancel":<><span>📤</span>{!isMobile&&" Share bookings"}{isMobile&&" Share"}</>}</button>
           </div>
           {bookingsDates.filter(dt=>!bookingsDay||dt===bookingsDay).map(date=>{const d=new Date(date+"T12:00:00");const dayShows=bookingsByDate[date]||[];if(!dayShows.length)return null;
             const timeSlots=[
@@ -696,9 +697,9 @@ Use empty string "" for any field you cannot find.`}]})});
       {view==="wishlist"&&(
         <div style={{padding:"16px 8px"}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,margin:"0 6px 16px",flexWrap:"wrap"}}>
-            <div style={{display:"inline-flex",alignItems:"center",gap:8,flexWrap:"wrap"}}>{!isMobile&&<button onClick={()=>setShowFilterMenu(!showFilterMenu)} style={{padding:"6px 12px",borderRadius:14,border:"none",fontSize:13,fontWeight:700,cursor:"pointer",background:showFilterMenu?TXT:"rgba(255,255,255,0.85)",color:BG,display:"inline-flex",alignItems:"center",gap:5}}><FilterIcon/> Filter {showFilterMenu?"▲":"▼"}</button>}<p style={{fontSize:14,color:TXT2,margin:0}}>{filteredWishlist.length} shows in wishlist</p></div>
+            <div style={{display:"inline-flex",alignItems:"center",gap:8,flexWrap:"wrap"}}><p style={{fontSize:14,color:TXT2,margin:0}}>{filteredWishlist.length} shows in wishlist</p></div>
             <label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:TXT2,fontWeight:600}}>Sort by
-              <select value={wishlistSort} onChange={e=>setWishlistSort(e.target.value)} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
+              <select value={wishlistSort} onChange={e=>setWishlistSort(e.target.value)} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:theme==="light"?"light":"dark"}}>
                 <option value="name">Show name</option>
                 <option value="venue">Venue number</option>
                 <option value="location">Location</option>
@@ -706,7 +707,7 @@ Use empty string "" for any field you cannot find.`}]})});
               </select>
             </label>
             {!isMobile&&<label style={{display:"inline-flex",alignItems:"center",gap:6,fontSize:13,color:TXT2,fontWeight:600}}>Cards across
-              <select value={wishCols} onChange={e=>setWishCols(Number(e.target.value))} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:"dark"}}>
+              <select value={wishCols} onChange={e=>setWishCols(Number(e.target.value))} style={{padding:"7px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",outline:"none",colorScheme:theme==="light"?"light":"dark"}}>
                 <option value={1}>1</option><option value={2}>2</option><option value={3}>3</option><option value={4}>4</option>
               </select>
             </label>}
@@ -762,11 +763,11 @@ Use empty string "" for any field you cannot find.`}]})});
             <p style={{fontSize:14,color:TXT2,margin:"0 0 16px"}}>Paste a link from any Edinburgh Fringe venue website</p>
             <div style={{display:"flex",flexWrap:"wrap",gap:4,marginBottom:14}}>
               {["edfest.com","edfringe.com","Pleasance","Assembly","Gilded Balloon","Underbelly","The Stand","Monkey Barrel"].map(s=>(
-                <span key={s} style={{fontSize:11,padding:"3px 8px",borderRadius:6,background:"rgba(255,255,255,0.06)",color:TXT2,fontWeight:500}}>{s}</span>
+                <span key={s} style={{fontSize:11,padding:"3px 8px",borderRadius:6,background:"var(--card)",color:TXT2,fontWeight:500}}>{s}</span>
               ))}
             </div>
             <input type="url" placeholder="https://..." value={addUrl} onChange={e=>setAddUrl(e.target.value)} disabled={addLoading}
-              style={{width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:14,outline:"none",color:TXT,background:"rgba(255,255,255,0.06)",boxSizing:"border-box",marginBottom:14}}
+              style={{width:"100%",padding:"12px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,fontSize:14,outline:"none",color:TXT,background:"var(--card)",boxSizing:"border-box",marginBottom:14}}
               onKeyDown={e=>{if(e.key==="Enter")handleAddShow();}}/>
             {addError&&<p style={{fontSize:14,color:"#FF4D6A",margin:"0 0 12px"}}>{addError}</p>}
             <div style={{display:"flex",gap:8,justifyContent:"flex-end"}}>
@@ -787,28 +788,29 @@ Use empty string "" for any field you cannot find.`}]})});
           {proposals.length===0&&<div style={{textAlign:"center",color:TXT3,fontSize:14,padding:"30px 10px"}}>No proposed days yet. Tap "+ New day" to start one.</div>}
           <div style={propLayout==="horizontal"?{display:"grid",gridTemplateColumns:"repeat(auto-fill, minmax(320px, 1fr))",gap:16,alignItems:"start"}:{}}>
           {proposals.map(prop=>(
-            <div key={prop.id} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:16,marginBottom:propLayout==="horizontal"?0:20}}>
+            <div key={prop.id} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:16,padding:isMobile?12:16,marginBottom:propLayout==="horizontal"?0:20,overflow:"hidden",boxSizing:"border-box"}}>
               <div style={{display:"flex",gap:8,marginBottom:collapsedProps[prop.id]?0:12,flexWrap:"wrap",alignItems:"center"}}>
                 <button onClick={()=>toggleCollapse(prop.id)} title={collapsedProps[prop.id]?"Expand":"Collapse"} style={{padding:"6px",borderRadius:8,border:"none",background:"transparent",color:TXT2,cursor:"pointer",display:"flex",alignItems:"center",flexShrink:0}}><ChevronIcon open={!collapsedProps[prop.id]}/></button>
-                <input value={prop.title} onChange={e=>updateProposal(prop.id,{title:e.target.value})} placeholder="Title" style={{flex:1,minWidth:90,padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,outline:"none"}}/>
+                <input value={prop.title} onChange={e=>updateProposal(prop.id,{title:e.target.value})} placeholder="Title" style={{flex:1,minWidth:isMobile?60:90,padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:14,fontWeight:700,outline:"none"}}/>
                 <div style={{position:"relative"}}>
-                  <button onClick={()=>setDateOpenId(dateOpenId===prop.id?null:prop.id)} title="Set a date" style={{padding:"7px 9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:prop.date?TXT:TXT3,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><CalIcon/>{prop.date?(()=>{const d=new Date(prop.date+"T12:00:00");return isNaN(d.getTime())?prop.date:` ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():""}</button>
+                  <button onClick={()=>setDateOpenId(dateOpenId===prop.id?null:prop.id)} title="Set a date" style={{padding:"7px 9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:prop.date?TXT:TXT3,fontSize:13,fontWeight:700,cursor:"pointer",display:"flex",alignItems:"center",gap:6}}><CalIcon/>{prop.date?(()=>{const d=new Date(prop.date+"T12:00:00");return isNaN(d.getTime())?prop.date:` ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():""}</button>
                   {dateOpenId===prop.id&&<div style={{position:"absolute",top:"100%",left:0,zIndex:40,marginTop:4,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:10,boxShadow:"0 8px 24px rgba(0,0,0,0.5)",minWidth:210}}>
-                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(prop.date||"")?prop.date:""} onChange={e=>{var d=e.target.value;var patch={date:d};if(d&&(!prop.title||prop.title==="Proposed day")){var dt=new Date(d+"T12:00:00");if(!isNaN(dt.getTime()))patch.title="Proposed day "+String(dt.getDate()).padStart(2,"0")+"/"+String(dt.getMonth()+1).padStart(2,"0")+"/"+dt.getFullYear();}updateProposal(prop.id,patch);setDateOpenId(null);}} style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",colorScheme:"dark"}}/>
+                    <input type="date" value={/^\d{4}-\d{2}-\d{2}$/.test(prop.date||"")?prop.date:""} onChange={e=>{var d=e.target.value;var patch={date:d};if(d&&(!prop.title||prop.title==="Proposed day")){var dt=new Date(d+"T12:00:00");if(!isNaN(dt.getTime()))patch.title="Proposed day "+String(dt.getDate()).padStart(2,"0")+"/"+String(dt.getMonth()+1).padStart(2,"0")+"/"+dt.getFullYear();}updateProposal(prop.id,patch);setDateOpenId(null);}} style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none",colorScheme:theme==="light"?"light":"dark"}}/>
                     <div style={{fontSize:11,color:TXT3,margin:"8px 0 4px"}}>or type your own:</div>
-                    <input type="text" value={prop.date||""} onChange={e=>updateProposal(prop.id,{date:e.target.value})} placeholder="e.g. Sat 15 Aug" style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none"}}/>
+                    <input type="text" value={prop.date||""} onChange={e=>updateProposal(prop.id,{date:e.target.value})} placeholder="e.g. Sat 15 Aug" style={{width:"100%",boxSizing:"border-box",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none"}}/>
                   </div>}
                 </div>
-                <button onClick={()=>shareProposal(prop)} title="Share just this option" style={{padding:"7px 12px",borderRadius:10,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:6}}><ShareThisIcon/> Share this</button>
-                <button onClick={()=>deleteProposal(prop.id)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:700,cursor:"pointer"}}>✕</button>
+                <button onClick={()=>{const opening=addOpenId!==prop.id;setAddOpenId(opening?prop.id:null);if(opening)loadCatalog();}} title="Add a show" style={{width:38,height:38,borderRadius:10,border:"none",background:"rgba(168,85,247,0.25)",color:"#C084FC",fontSize:22,fontWeight:900,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",flexShrink:0}}>+</button>
+                <button onClick={()=>shareProposal(prop)} title="Share" style={{padding:"7px 10px",borderRadius:10,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",gap:5,flexShrink:0,whiteSpace:"nowrap"}}><ShareThisIcon/>{!isMobile&&" Share"}</button>
+                <button onClick={()=>deleteProposal(prop.id)} style={{padding:"7px 10px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:700,cursor:"pointer",flexShrink:0}}>✕</button>
               </div>
               {!collapsedProps[prop.id]&&<>
               <div style={{marginTop:14}}>
-                <button onClick={()=>{const opening=addOpenId!==prop.id;setAddOpenId(opening?prop.id:null);if(opening)loadCatalog();}} style={{display:"inline-flex",alignItems:"center",gap:6,padding:"8px 14px",borderRadius:12,border:"none",background:"rgba(168,85,247,0.2)",color:"#C084FC",fontSize:13,fontWeight:700,cursor:"pointer"}}><PlusIcon/> Add a show</button>
+
                 {addOpenId===prop.id&&<AddShowList shows={[...wishlist,...recommendations,...allShows.filter(s=>s.booked),...(allCatalog||[])]} catNote={catState==="loading"?"Loading the full Fringe catalogue…":catState==="error"?"Couldn’t load the full catalogue — showing your shows only.":catState==="unconfigured"?"Tip: paste the All-tab CSV link into ALL_CSV_URL (top of the file) to search the full Fringe catalogue here.":catState==="ready-no-time-cols"?("Searching your shows + "+(allCatalog?allCatalog.length.toLocaleString():"0")+" listings — no Start time / End Time / Duration columns found in the All tab, so catalogue times show as —."):catState==="ready-empty-times"?("Searching your shows + "+(allCatalog?allCatalog.length.toLocaleString():"0")+" listings — the All tab has time columns but the cells look empty, so catalogue times show as —."):allCatalog?("Searching your shows + "+allCatalog.length.toLocaleString()+" catalogue listings ("+allCatalog.filter(s=>s.start).length.toLocaleString()+" with times)"):null} onAdd={s=>addToProposal(prop.id,s)} onDone={()=>setAddOpenId(null)}/>}
               </div>
               <ErrorBoundary><ProposalDay date={prop.date} shows={dayShowsFor(prop)}/></ErrorBoundary>
-              <textarea value={prop.comment||""} onChange={e=>updateProposal(prop.id,{comment:e.target.value})} placeholder="Why you think they'll like it (optional)..." rows={2} style={{width:"100%",boxSizing:"border-box",marginBottom:12,padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+              <textarea value={prop.comment||""} onChange={e=>updateProposal(prop.id,{comment:e.target.value})} placeholder="Why you think they'll like it (optional)..." rows={2} style={{width:"100%",boxSizing:"border-box",marginBottom:12,padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
               {(prop.shows||[]).length>0&&<div style={{marginTop:10,display:"flex",gap:6,flexWrap:"wrap"}}>{(prop.shows||[]).map((s,i)=>({s:s,i:i})).sort((a,b)=>{const ta=timeToMinutes(a.s.start),tb=timeToMinutes(b.s.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).map(({s,i})=>(<span key={i} style={{display:"inline-flex",alignItems:"center",gap:5,background:"rgba(168,85,247,0.15)",color:"#C084FC",padding:"3px 9px",borderRadius:8,fontSize:12,fontWeight:600}}>{s.start?formatTime(s.start)+" · ":""}{s.name}<span onClick={()=>removeFromProposal(prop.id,i)} style={{cursor:"pointer",opacity:0.8}}>✕</span></span>))}</div>}
               </>}
             </div>
@@ -835,7 +837,7 @@ Use empty string "" for any field you cannot find.`}]})});
         {n:f.longest?(f.longest.duration||"—"):"—",l:(f.longest?((past(f.longest)?"how long you spent watching ":"how long you will spend watching ")+f.longest.name):"your longest show")+" 🍿",cl:"#34D399"},
       ];return(
         <div style={{padding:"18px 14px 50px",maxWidth:760,margin:"0 auto"}}>
-          {!isMobile&&<div style={{marginBottom:20}}>
+          {false&&<div style={{marginBottom:20}}>
             <div style={{display:"flex",gap:6,flexWrap:"wrap",justifyContent:"center"}}>
               <button onClick={()=>setPeopleFilter([])} style={{padding:"4px 10px",borderRadius:16,border:`1px solid ${peopleFilter.length===0?"transparent":CARD_BORDER}`,background:peopleFilter.length===0?ACCENT:"rgba(255,255,255,0.06)",color:peopleFilter.length===0?"#fff":TXT2,fontSize:11,fontWeight:700,cursor:"pointer"}}>Me</button>
               {people.filter(nm=>nm.toLowerCase()!=="me").map(nm=>{const on=peopleFilter.length===1&&peopleFilter[0]===nm;return <button key={nm} onClick={()=>setPeopleFilter([nm])} style={{padding:"4px 10px",borderRadius:16,border:`1px solid ${on?"transparent":CARD_BORDER}`,background:on?ACCENT:"rgba(255,255,255,0.06)",color:on?"#fff":TXT2,fontSize:11,fontWeight:700,cursor:"pointer"}}>{nm}</button>;})}
@@ -858,6 +860,13 @@ Use empty string "" for any field you cannot find.`}]})});
               <div style={{fontSize:20,fontWeight:900,color:"#EF4444"}}>{f.hated.length} you disliked 👎👎</div>
               <div style={{fontSize:13,color:TXT2,marginTop:6,lineHeight:1.4}}>{f.hated.length?f.hated.map(s=>s.name).join(", "):"Nothing you hated — nice!"}</div>
             </div>
+          </div>
+          <div style={{marginTop:32,borderTop:`1px solid ${CARD_BORDER}`,paddingTop:20}}>
+            <div style={{fontSize:18,fontWeight:900,marginBottom:6}}>✨ Create your own</div>
+            <p style={{fontSize:13,color:TXT2,margin:"0 0 12px",lineHeight:1.5}}>Tell me what you want to measure and I’ll work it out from your shows.</p>
+            <textarea value={cyoQuery} onChange={e=>setCyoQuery(e.target.value)} placeholder="e.g. What’s my average show price? How many comedy shows? Which day has the most shows?" rows={3} style={{width:"100%",boxSizing:"border-box",padding:"10px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,lineHeight:1.5,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+            <button onClick={()=>{if(!cyoQuery.trim())return;setCyoLoading(true);setCyoResults(null);const sd=(f.all||allShows||[]).map(s=>({name:s.name,venue:s.venue,genre:s.genre,price:s.price,duration:s.duration,date:s.date,start:s.start,organiser:s.organiser,attendees:s.attendees}));fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:1000,messages:[{role:"user",content:"You are a stats calculator for Edinburgh Fringe shows. Given this show data:\n"+JSON.stringify(sd)+"\nThe user asks: "+cyoQuery+"\nCalculate the requested metrics. Respond ONLY with a JSON array of objects like [{label:\"Metric name\",value:\"42\"},...]. Keep labels short (2-5 words). Values should be numbers, prices with pound sign, times, or short text. No markdown, no explanation, just the JSON array."}]})}).then(r=>r.json()).then(d=>{try{let txt=(d.content||[]).map(b=>b.text||"").join("");txt=txt.replace(/```json|```/g,"").trim();setCyoResults(JSON.parse(txt));}catch{setCyoResults([{label:"Error",value:"Couldn’t parse"}]);}}).catch(()=>setCyoResults([{label:"Error",value:"Request failed"}])).finally(()=>setCyoLoading(false));}} disabled={cyoLoading||!cyoQuery.trim()} style={{marginTop:8,padding:"10px 20px",borderRadius:10,border:"none",background:cyoQuery.trim()?ACCENT:"rgba(168,85,247,0.3)",color:"#fff",fontSize:14,fontWeight:800,cursor:cyoQuery.trim()?"pointer":"not-allowed"}}>{cyoLoading?"Thinking…":"📊 Calculate"}</button>
+            {cyoResults&&<div style={{display:"flex",gap:12,flexWrap:"wrap",marginTop:16,justifyContent:"center"}}>{(()=>{const cols=["#F472B6","#34D399","#60A5FA","#FBBF24","#A78BFA","#FB923C","#2DD4BF","#F87171","#818CF8","#4ADE80"];return cyoResults.map((m,i)=><div key={i} style={{flex:"1 1 160px",maxWidth:240,padding:"16px 14px",borderRadius:14,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.04)",textAlign:"center"}}><div style={{fontSize:28,fontWeight:900,color:cols[i%cols.length],marginBottom:4,lineHeight:1.2}}>{String(m.value)}</div><div style={{fontSize:13,color:TXT2,fontWeight:600}}>{m.label}</div></div>);})()}</div>}
           </div>
         </div>
       );})()}
@@ -889,7 +898,7 @@ Use empty string "" for any field you cannot find.`}]})});
                     <button onClick={()=>setCatFilterOpen(false)} aria-label="Close" style={{width:36,height:36,borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:18,cursor:"pointer"}}>✕</button>
                   </div>
                 </div>
-                <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="🔎 Search shows, artists, venues…" style={{width:"100%",boxSizing:"border-box",padding:"11px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,outline:"none",marginBottom:10}}/>
+                <input value={searchQuery} onChange={e=>setSearchQuery(e.target.value)} placeholder="🔎 Search shows, artists, venues…" style={{width:"100%",boxSizing:"border-box",padding:"11px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:14,outline:"none",marginBottom:10}}/>
                 <div style={{marginBottom:10}}><MultiDrop open={catODrop==="genre"} onToggle={()=>setCatODrop(catODrop==="genre"?null:"genre")} label="All genres" icon="🎭" selected={catGenre} onSelect={toggleCatGenre} onClear={()=>setCatGenre([])} options={catGenreOpts.map(g=>({value:g,label:g}))}/></div><div style={{marginBottom:10}}><MultiDrop open={catODrop==="venue"} onToggle={()=>setCatODrop(catODrop==="venue"?null:"venue")} label="Venue (name, # or postcode)" icon="📍" selected={catVenue} onSelect={toggleCatVenue} onClear={()=>setCatVenue([])} options={catVenueOpts}/></div>
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr 1fr":"1fr 1fr 1fr 1fr",gap:8,marginBottom:12}}>
                   <select value={catAge} onChange={e=>setCatAge(e.target.value)} aria-label="Age" style={catSelStyle}><option value="">Any age</option>{catAgeOpts.map(a=><option key={a} value={a}>{a}</option>)}</select>
@@ -899,8 +908,8 @@ Use empty string "" for any field you cannot find.`}]})});
                   <select value={catExp} onChange={e=>setCatExp(e.target.value)} aria-label="Experience level" style={catSelStyle}><option value="">Experience level</option>{catExpOpts.map(x=><option key={x} value={x}>{x}</option>)}</select>
                 </div>
                 <div style={{display:"grid",gridTemplateColumns:isMobile?"1fr":"1fr 1fr",gap:8,marginBottom:12}}>
-                  <label style={{display:"flex",flexDirection:"column",gap:4,fontSize:11,color:TXT3,fontWeight:700}}>On date<input type="date" value={catDate} onChange={e=>setCatDate(e.target.value)} style={catSelStyle}/></label>
-                  <div style={{display:"flex",flexDirection:"column",gap:4}}><span style={{fontSize:11,color:TXT3,fontWeight:700}}>Runs between</span><div style={{display:"flex",gap:6}}><input type="date" value={catRunFrom} onChange={e=>setCatRunFrom(e.target.value)} style={catSelStyle}/><input type="date" value={catRunTo} onChange={e=>setCatRunTo(e.target.value)} style={catSelStyle}/></div></div>
+                  <label style={{display:"flex",flexDirection:"column",gap:4,fontSize:11,color:TXT3,fontWeight:700}}>📅 On date<input type="date" value={catDate} onChange={e=>setCatDate(e.target.value)} style={catSelStyle}/></label>
+                  <div style={{display:"flex",flexDirection:"column",gap:4}}><span style={{fontSize:11,color:TXT3,fontWeight:700}}>📅 Runs between</span><div style={{display:"flex",gap:6}}><input type="date" value={catRunFrom} onChange={e=>setCatRunFrom(e.target.value)} style={catSelStyle}/><input type="date" value={catRunTo} onChange={e=>setCatRunTo(e.target.value)} style={catSelStyle}/></div></div>
                 </div>
                 <label style={{display:"flex",alignItems:"center",gap:8,fontSize:13,color:TXT2,cursor:"pointer",marginBottom:12}}><input type="checkbox" checked={catAcc} onChange={e=>setCatAcc(e.target.checked)} style={{width:16,height:16,cursor:"pointer"}}/>♿ Only shows with accessibility info</label>
                 <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:14,flexWrap:"wrap",background:"rgba(255,255,255,0.03)",border:`1px solid ${CARD_BORDER}`,borderRadius:10,padding:"8px 12px"}}>
@@ -930,38 +939,43 @@ Use empty string "" for any field you cannot find.`}]})});
         <div onClick={()=>setSelectedShow(null)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,0.7)",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
           <div ref={modalRef} onClick={e=>e.stopPropagation()} onTouchStart={e=>{dragStart.current=(modalRef.current&&modalRef.current.scrollTop<=0)?e.touches[0].clientY:null;}} onTouchMove={e=>{if(dragStart.current!=null){const dy=e.touches[0].clientY-dragStart.current;setDragY(dy>0?dy:0);}}} onTouchEnd={()=>{if(dragY>110)setSelectedShow(null);setDragY(0);dragStart.current=null;}} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:20,padding:28,maxWidth:420,width:"100%",boxShadow:"0 24px 80px rgba(0,0,0,0.6)",boxSizing:"border-box",position:"relative",maxHeight:"90vh",overflowY:"auto",transform:dragY?`translateY(${dragY}px)`:"none",transition:dragY?"none":"transform 0.25s ease",touchAction:dragY>0?"none":"auto"}}>
             <button onClick={()=>setSelectedShow(null)} aria-label="Close" style={{position:"fixed",top:18,right:18,zIndex:1001,width:36,height:36,borderRadius:18,background:"rgba(21,21,40,0.92)",border:`1px solid ${CARD_BORDER}`,fontSize:20,cursor:"pointer",color:TXT,display:"flex",alignItems:"center",justifyContent:"center",lineHeight:1,boxShadow:"0 2px 8px rgba(0,0,0,0.4)"}}>×</button>
-            <div style={{width:40,height:5,borderRadius:3,background:"rgba(255,255,255,0.25)",margin:"-14px auto 14px"}}/>
+            <div style={{width:40,height:5,borderRadius:3,background:"rgba(128,128,128,0.3)",margin:"-14px auto 14px"}}/>
             <div style={{display:"inline-block",fontSize:12,fontWeight:700,padding:"4px 12px",borderRadius:8,marginBottom:14,background:gc(selectedShow.organiser).bg,color:"#fff",letterSpacing:"0.5px"}}>{selectedShow.organiser}</div>
             <h2 style={{fontSize:24,fontWeight:800,margin:"0 0 4px",color:TXT,lineHeight:1.2}}>{selectedShow.name}</h2>
-            <div style={{fontSize:14,color:TXT2,marginBottom:18}}>{selectedShow.venue}</div>
+            <div style={{fontSize:14,color:TXT2,marginBottom:4}}>{selectedShow.venue}</div>
+            {selectedShow.address&&(()=>{const pc=extractPostcode(selectedShow.address);return(<div style={{fontSize:13,color:TXT3,marginBottom:14}}>📍 {pc?(<>{selectedShow.address.replace(pc,"").replace(/,\s*$/,"")}{", "}<a href={mapsUrl(selectedShow)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>):(<a href={mapsUrl(selectedShow)} target="_blank" rel="noopener noreferrer" style={{color:"#60A5FA"}}>{selectedShow.address}</a>)}</div>);})()}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"14px 16px",fontSize:15,marginBottom:18}}>
               {selectedShow.date&&<Dt l="Date">{(()=>{const d=new Date(selectedShow.date+"T12:00:00");return`${DAYS_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;})()}</Dt>}
               {!selectedShow.date&&<Dt l="Date">TBC</Dt>}
               <Dt l="Time">{selectedShow.start?formatTime(selectedShow.start):"TBC"}{selectedShow.end?` – ${formatTime(selectedShow.end)}`:""}</Dt>
-              <Dt l="Price">{selectedShow.price||"TBC"}</Dt>
-              {selectedShow.duration&&<Dt l="Duration">{selectedShow.duration}</Dt>}
+              <Dt l="Price"><span style={{display:"inline-flex",alignItems:"center",gap:5}}>{editingPrice===reviewKey(selectedShow)?<><input autoFocus defaultValue={getPrice(selectedShow)} onBlur={e=>{savePriceOverride(selectedShow,e.target.value);setEditingPrice(null);}} onKeyDown={e=>{if(e.key==="Enter"){savePriceOverride(selectedShow,e.target.value);setEditingPrice(null);}}} style={{width:70,padding:"3px 6px",borderRadius:6,border:`1px solid ${CARD_BORDER}`,background:"rgba(128,128,128,0.15)",color:TXT,fontSize:14,outline:"none"}}/></>:<>{getPrice(selectedShow)||"TBC"}<button onClick={()=>setEditingPrice(reviewKey(selectedShow))} title="Edit price" style={{background:"none",border:"none",color:TXT3,cursor:"pointer",padding:2,fontSize:13}}>✏️</button>{priceOverrides[reviewKey(selectedShow)]&&<span style={{fontSize:10,color:"#FB923C",fontWeight:600}}>edited</span>}</>}</span></Dt>
+              {selectedShow.duration&&<Dt l="Duration">{(()=>{const d=String(selectedShow.duration);const hm=/^(\d+)h(\d+)?m?$/.exec(d);if(hm){const mins=parseInt(hm[1])*60+(parseInt(hm[2]||"0"));return <>{d} ({mins} mins)</>;}if(/^\d+$/.test(d)){const n=parseInt(d);if(n>=60){const h=Math.floor(n/60),m=n%60;return <>{d} mins ({h}h{m?m+"m":""})</>;}return d+" mins";}return d;})()}</Dt>}
               {selectedShow.attendees&&<div style={{gridColumn:"1 / -1"}}>
-                <div style={{fontSize:12,color:TXT3,marginBottom:4,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Going</div>
+                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:4,flexWrap:"wrap"}}>
+                  <div style={{fontSize:12,color:TXT3,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Going</div>
+                  <span style={{color:selectedShow.booked?"#34D399":"#FB923C",fontWeight:700,fontSize:13}}>{selectedShow.booked?"Booked ✓":"Not booked"}</span>
+                  {selectedShow.ltf&&<span style={{fontSize:11,background:"rgba(255,186,8,0.15)",color:"#FFBA08",padding:"2px 7px",borderRadius:6,fontWeight:700}}>LoveTheFringe</span>}
+                </div>
                 <div style={{display:"flex",gap:5,flexWrap:"wrap"}}>
                   {selectedShow.attendees.split(",").map((p,pi)=>(
-                    <span key={pi} style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(255,255,255,0.08)",color:TXT,padding:"4px 10px",borderRadius:20,fontSize:13,fontWeight:600}}><UserIcon/>{p.trim()}</span>
+                    <span key={pi} style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(128,128,128,0.12)",color:TXT,padding:"4px 10px",borderRadius:20,fontSize:13,fontWeight:600}}><UserIcon/>{p.trim()}</span>
                   ))}
                 </div>
               </div>}
-              <Dt l="Status"><span style={{color:selectedShow.booked?"#34D399":"#FB923C",fontWeight:700}}>{selectedShow.booked?"Booked ✓":"Not booked"}</span>{selectedShow.ltf&&<span style={{marginLeft:8,fontSize:11,background:"rgba(255,186,8,0.15)",color:"#FFBA08",padding:"2px 7px",borderRadius:6,fontWeight:700}}>LoveTheFringe</span>}</Dt>
-              {selectedShow.availability&&<Dt l="Availability"><span style={{color:selectedShow.availability==="Sold Out"?"#EF4444":selectedShow.availability==="Limited"?"#FB923C":selectedShow.availability==="Available"?"#34D399":TXT,fontWeight:700}}>{selectedShow.availability}</span></Dt>}
-              {genresOf(selectedShow).length>0&&<div style={{gridColumn:"1 / -1"}}><div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Genre</div><GenrePills show={selectedShow}/></div>}
+              {genresOf(selectedShow).length>0&&<div style={{gridColumn:"1 / -1"}}><div style={{fontSize:12,color:TXT3,marginBottom:4,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Genre & Tags</div><div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}><GenrePills show={selectedShow}/>{(tagMap[reviewKey(selectedShow)]||[]).map((t,ti)=>(<span key={ti} style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(96,165,250,0.15)",color:"#93C5FD",padding:"4px 10px",borderRadius:8,fontSize:12,fontWeight:600}}>{t}<span onClick={()=>removeTag(selectedShow,t)} style={{cursor:"pointer",opacity:0.7}}>✕</span></span>))}{modalTagAdding?(<input autoFocus value={modalTagInput} onChange={e=>setModalTagInput(e.target.value)} onBlur={()=>{if(modalTagInput.trim())addTag(selectedShow,modalTagInput.trim());setModalTagInput("");setModalTagAdding(false);}} onKeyDown={e=>{if(e.key==="Enter"){if(modalTagInput.trim())addTag(selectedShow,modalTagInput.trim());setModalTagInput("");setModalTagAdding(false);}else if(e.key==="Escape"){setModalTagInput("");setModalTagAdding(false);}}} placeholder="tag" style={{width:80,padding:"4px 8px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:12,outline:"none"}}/>):(<button onClick={()=>setModalTagAdding(true)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"4px 8px",borderRadius:8,border:`1px dashed ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:12,fontWeight:600,cursor:"pointer"}}>+ Tag</button>)}</div></div>}
             </div>
             {selectedShow.booked&&(
               <div style={{marginBottom:16}}>
-                <div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Your review</div>
-                <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                <button onClick={()=>setEditingPrice(ep=>ep==="review-"+reviewKey(selectedShow)?null:"review-"+reviewKey(selectedShow))} style={{display:"flex",alignItems:"center",gap:6,background:"none",border:"none",color:TXT3,cursor:"pointer",padding:0,fontSize:12,fontWeight:700,textTransform:"uppercase",letterSpacing:1,marginBottom:editingPrice==="review-"+reviewKey(selectedShow)?6:0}}>
+                  {reviews[reviewKey(selectedShow)]?<ThumbGroup opt={RATINGS.find(r=>r.v===reviews[reviewKey(selectedShow)])||RATINGS[0]} size={14}/>:"⭐"} Your review {editingPrice==="review-"+reviewKey(selectedShow)?"▲":"▼"}
+                </button>
+                {editingPrice==="review-"+reviewKey(selectedShow)&&<div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
                   {RATINGS.map(r=>{const sel=reviews[reviewKey(selectedShow)]===r.v;return(
                     <button key={r.v} onClick={()=>setReview(selectedShow,r.v)} title={r.label} style={{display:"flex",alignItems:"center",gap:4,padding:"7px 10px",borderRadius:10,cursor:"pointer",border:`1px solid ${sel?r.color:CARD_BORDER}`,background:sel?`${r.color}22`:"transparent",color:r.color,fontSize:12,fontWeight:700}}>
                       <ThumbGroup opt={r} size={16}/>{sel?r.label:""}
                     </button>
                   );})}
-                </div>
+                </div>}
               </div>
             )}
             {!selectedShow.booked&&(
@@ -976,29 +990,14 @@ Use empty string "" for any field you cannot find.`}]})});
                 </div>
               </div>
             )}
-            <div style={{marginBottom:16}}>
-              <div style={{fontSize:12,color:TXT3,marginBottom:6,textTransform:"uppercase",letterSpacing:1,fontWeight:700}}>Tags</div>
-              <div style={{display:"flex",gap:5,flexWrap:"wrap",alignItems:"center"}}>
-                {(tagMap[reviewKey(selectedShow)]||[]).map((t,ti)=>(
-                  <span key={ti} style={{display:"inline-flex",alignItems:"center",gap:4,background:"rgba(96,165,250,0.15)",color:"#93C5FD",padding:"4px 10px",borderRadius:8,fontSize:13,fontWeight:600}}>{t}<span onClick={()=>removeTag(selectedShow,t)} style={{cursor:"pointer",opacity:0.7}}>✕</span></span>
-                ))}
-                {modalTagAdding?(
-                  <input autoFocus value={modalTagInput} onChange={e=>setModalTagInput(e.target.value)} onBlur={()=>{if(modalTagInput.trim())addTag(selectedShow,modalTagInput.trim());setModalTagInput("");setModalTagAdding(false);}} onKeyDown={e=>{if(e.key==="Enter"){if(modalTagInput.trim())addTag(selectedShow,modalTagInput.trim());setModalTagInput("");setModalTagAdding(false);}else if(e.key==="Escape"){setModalTagInput("");setModalTagAdding(false);}}} placeholder="tag" style={{width:100,padding:"4px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none"}}/>
-                ):(
-                  <button onClick={()=>setModalTagAdding(true)} style={{display:"inline-flex",alignItems:"center",gap:3,padding:"4px 10px",borderRadius:8,border:`1px dashed ${CARD_BORDER}`,background:"transparent",color:TXT3,fontSize:13,fontWeight:600,cursor:"pointer"}}>+ Tag</button>
-                )}
-              </div>
-            </div>
+
             {selectedShow.notes&&<div style={{fontSize:14,color:TXT2,fontStyle:"italic",marginBottom:12}}>{selectedShow.notes}</div>}
-            {selectedShow.address&&(()=>{const pc=extractPostcode(selectedShow.address);return(
-              <div style={{fontSize:14,color:TXT2,marginBottom:18}}>📍 {pc?(<>{selectedShow.address.replace(pc,"").replace(/,\s*$/,"")}{", "}<a href={mapsUrl(selectedShow)} target="_blank" rel="noopener noreferrer" title={(selectedShow.lat!=null&&selectedShow.lng!=null?"Opens exact coordinates ("+selectedShow.lat+", "+selectedShow.lng+")":"No coordinates for this show — opens address search")} style={{color:"#60A5FA",fontWeight:600}}>{pc}</a></>):(<a href={mapsUrl(selectedShow)} target="_blank" rel="noopener noreferrer" title={(selectedShow.lat!=null&&selectedShow.lng!=null?"Opens exact coordinates ("+selectedShow.lat+", "+selectedShow.lng+")":"No coordinates for this show — opens address search")} style={{color:"#60A5FA"}}>{selectedShow.address}</a>)}</div>);})()}
-            {selectedShow.link&&<a href={selectedShow.link} target="_blank" rel="noopener noreferrer" style={{display:"block",textAlign:"center",padding:"12px 16px",borderRadius:12,background:gc(selectedShow.organiser).bg,color:"#fff",textDecoration:"none",fontSize:15,fontWeight:700}}>View Listing →</a>}
-            {selectedShow.date&&selectedShow.start&&(
-              <div style={{display:"flex",gap:8,marginTop:10}}>
-                <button onClick={()=>downloadShowICS(selectedShow)} style={{flex:1,padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7}}><AppleIcon/> Add to iCal</button>
-                <a href={gcalUrl(selectedShow)} target="_blank" rel="noopener noreferrer" style={{flex:1,padding:"11px 12px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,textDecoration:"none",fontSize:14,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:7}}><GoogleIcon/> Add to Calendar</a>
-              </div>
-            )}
+
+            <div style={{display:"flex",gap:6,marginTop:4}}>
+              {selectedShow.link&&<a href={selectedShow.link} target="_blank" rel="noopener noreferrer" title="View Listing" style={{flex:1,padding:"9px",borderRadius:10,background:gc(selectedShow.organiser).bg,color:"#fff",textDecoration:"none",fontSize:13,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center",gap:5}}>↗</a>}
+              {selectedShow.date&&selectedShow.start&&<><button onClick={()=>downloadShowICS(selectedShow)} title="Add to iCal" style={{flex:1,padding:"9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,fontWeight:700,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}><AppleIcon/></button>
+              <a href={gcalUrl(selectedShow)} target="_blank" rel="noopener noreferrer" title="Add to Google Calendar" style={{flex:1,padding:"9px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,textDecoration:"none",fontSize:13,fontWeight:700,display:"inline-flex",alignItems:"center",justifyContent:"center"}}><GoogleIcon/></a></>}
+            </div>
           </div>
         </div>
       )}
@@ -1027,7 +1026,7 @@ Use empty string "" for any field you cannot find.`}]})});
               <>
                 <div style={{fontSize:18,fontWeight:800,color:TXT,marginBottom:4}}>Got feedback?</div>
                 <div style={{fontSize:13,color:TXT2,marginBottom:14}}>Bugs, ideas, shows I've missed — leave it here and it'll go straight to Jo.</div>
-                <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} placeholder="Type your feedback..." rows={5} style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
+                <textarea value={feedbackText} onChange={e=>setFeedbackText(e.target.value)} placeholder="Type your feedback..." rows={5} style={{width:"100%",boxSizing:"border-box",padding:"12px 14px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit"}}/>
                 <div style={{display:"flex",gap:8,marginTop:14,justifyContent:"flex-end"}}>
                   <button onClick={()=>setShowFeedback(false)} style={{padding:"10px 16px",borderRadius:12,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:14,fontWeight:700,cursor:"pointer"}}>Cancel</button>
                   <button onClick={submitFeedback} disabled={!feedbackText.trim()} style={{padding:"10px 20px",borderRadius:12,border:"none",background:ACCENT,color:"#fff",fontSize:14,fontWeight:700,cursor:feedbackText.trim()?"pointer":"default",opacity:feedbackText.trim()?1:0.5}}>Send</button>
@@ -1077,9 +1076,9 @@ function BookingDialog({show,onClose,onConfirm}){
       <div style={{fontSize:18,fontWeight:900,color:TXT,marginBottom:4}}>Mark as booked</div>
       <div style={{fontSize:14,color:TXT2,marginBottom:16}}>{show.name}</div>
       <div style={{fontSize:12,color:TXT3,fontWeight:700,marginBottom:4}}>Date you booked *</div>
-      <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,outline:"none",colorScheme:"dark"}} />
+      <input type="date" value={date} onChange={e=>setDate(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:14,outline:"none",colorScheme:theme==="light"?"light":"dark"}} />
       <div style={{fontSize:12,color:TXT3,fontWeight:700,margin:"12px 0 4px"}}>Start time {needTime?"*":""}</div>
-      <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:14,outline:"none",colorScheme:"dark"}} />
+      <input type="time" value={time} onChange={e=>setTime(e.target.value)} style={{width:"100%",boxSizing:"border-box",padding:"9px 12px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:14,outline:"none",colorScheme:theme==="light"?"light":"dark"}} />
       {needTime&&<div style={{fontSize:11,color:"#FB923C",marginTop:6}}>This show has no listed time — please add one.</div>}
       <div style={{display:"flex",gap:8,justifyContent:"flex-end",marginTop:18}}>
         <button onClick={onClose} style={{padding:"9px 14px",borderRadius:10,border:`1px solid ${CARD_BORDER}`,background:"transparent",color:TXT2,fontSize:14,fontWeight:700,cursor:"pointer"}}>✕ Cancel</button>
@@ -1091,7 +1090,7 @@ function BookingDialog({show,onClose,onConfirm}){
 function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps,onWish,onBook,inWish,inBook}){
   const c=gc2(show.organiser);
   const timeStr=show.start?(formatTime(show.start)+(show.end?(" – "+formatTime(show.end)):"")):"";
-  const btn={display:"inline-flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"none"};
+  const btn={display:"inline-flex",alignItems:"center",gap:5,padding:"6px 10px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",textDecoration:"none"};
   return (
     <div {...(dragProps||{})} style={{background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderLeft:`4px solid ${c.bg}`,borderRadius:12,padding:"12px 14px",cursor:dragProps?"grab":"default",height:"100%",boxSizing:"border-box",display:"flex",flexDirection:"column",overflow:"hidden"}}>
       <div onClick={onOpen} style={{cursor:onOpen?"pointer":"default",flex:"1 1 auto",minHeight:0,overflow:"hidden"}}>
@@ -1105,18 +1104,18 @@ function JoCard({show,readOnly,lane,lanes,onLane,onOpen,dragProps,onWish,onBook,
         {onWish&&<button onClick={e=>{e.stopPropagation();onWish();}} title={inWish?"Remove from wishlist":"Add to wishlist"} aria-label="Add to wishlist" style={{width:34,height:34,borderRadius:9,border:`1px solid ${inWish?"#a855f7":CARD_BORDER}`,background:inWish?"rgba(168,85,247,0.2)":"transparent",color:inWish?"#C084FC":TXT3,fontSize:16,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>{inWish?"💜":"♡"}</button>}
         {onBook&&<button onClick={e=>{e.stopPropagation();onBook();}} title={inBook?"Booked":"Mark as booked"} aria-label="Mark as booked" style={{width:34,height:34,borderRadius:9,border:`1px solid ${inBook?"#34D399":CARD_BORDER}`,background:inBook?"rgba(52,211,153,0.2)":"transparent",color:inBook?"#34D399":TXT3,fontSize:15,cursor:"pointer",display:"inline-flex",alignItems:"center",justifyContent:"center"}}>🎫</button>}
         {show.link&&<a href={show.link} target="_blank" rel="noopener noreferrer" style={btn}>View Listing ↗</a>}
-        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"var(--card-solid)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:"dark"}}><option value="">Uncategorised</option>{lanes.map(l=>(<option key={l} value={l}>{l}</option>))}</select>}
+        {!readOnly&&onLane&&<select value={lane} onChange={e=>onLane(e.target.value)} onClick={e=>e.stopPropagation()} style={{marginLeft:"auto",padding:"6px 8px",borderRadius:9,border:`1px solid ${CARD_BORDER}`,background:"var(--card-solid)",color:TXT,fontSize:12,fontWeight:700,cursor:"pointer",colorScheme:theme==="light"?"light":"dark"}}><option value="">Uncategorised</option>{lanes.map(l=>(<option key={l} value={l}>{l}</option>))}</select>}
       </div>
     </div>
   );
 }
-function decProp_(o){return{title:o.t||"",date:o.d||"",comment:o.c||"",shows:(o.s||[]).map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||"",fullAddress:a[9]||""}))};}
+function decProp_(o){return{title:o.t||"",date:o.d||"",comment:o.c||"",shows:(o.s||[]).map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||"",fullAddress:a[9]||"",address:a[9]||"",venueCode:a[10]||"",duration:a[11]||"",lat:(a[12]!==""&&a[12]!=null?Number(a[12]):null),lng:(a[13]!==""&&a[13]!=null?Number(a[13]):null)}))};}
 function encodeBookings(shows){try{return LZString.compressToEncodedURIComponent(JSON.stringify({b:(shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.organiser,x.link||"",x.date||"",x.fullAddress||x.address||"",x.duration||"",x.lat!=null?x.lat:"",x.lng!=null?x.lng:""])}));}catch(e){return "";}}
 function decodeBookings(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.b))return o.b.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],organiser:a[5],link:a[6]||"",date:a[7]||"",address:a[8]||"",fullAddress:a[8]||"",duration:a[9]||"",lat:(a[10]!==""&&a[10]!=null?Number(a[10]):null),lng:(a[11]!==""&&a[11]!=null?Number(a[11]):null),booked:1}));}}catch(e){}return null;}
-function encodeProposals(props){try{return LZString.compressToEncodedURIComponent(JSON.stringify({m:(props||[]).map(p=>({t:p.title||"",d:p.date||"",c:p.comment||"",s:(p.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||""])}))}));}catch(e){return "";}}
+function encodeProposals(props){try{return LZString.compressToEncodedURIComponent(JSON.stringify({m:(props||[]).map(p=>({t:p.title||"",d:p.date||"",c:p.comment||"",s:(p.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||"",x.venueCode||"",x.duration||"",x.lat!=null?x.lat:"",x.lng!=null?x.lng:""])}))}));}catch(e){return "";}}
 function decodeProposals(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.m))return o.m.map(decProp_);if(o&&Array.isArray(o.s))return [decProp_(o)];if(o&&o.shows)return [o];}}catch(e){}try{const o=JSON.parse(decodeURIComponent(atob(t)));if(o){if(Array.isArray(o.m))return o.m.map(decProp_);if(o.shows)return [o];}}catch(e){}return null;}
-function encodeProposal(o){try{const c={t:o.title||"",d:o.date||"",s:(o.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||""])};return LZString.compressToEncodedURIComponent(JSON.stringify(c));}catch(e){return "";}}
-function decodeProposal(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.s))return{title:o.t||"",date:o.d||"",shows:o.s.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||"",fullAddress:a[9]||""}))};if(o&&o.shows)return o;}}catch(e){}try{return JSON.parse(decodeURIComponent(atob(t)));}catch(e){return null;}}
+function encodeProposal(o){try{const c={t:o.title||"",d:o.date||"",s:(o.shows||[]).map(x=>[x.name,x.venue,x.start,x.end,x.price,x.booked?1:0,x.organiser,x.link,x.genres||"",x.fullAddress||x.address||"",x.venueCode||"",x.duration||"",x.lat!=null?x.lat:"",x.lng!=null?x.lng:""])};return LZString.compressToEncodedURIComponent(JSON.stringify(c));}catch(e){return "";}}
+function decodeProposal(t){try{const s=LZString.decompressFromEncodedURIComponent(t);if(s){const o=JSON.parse(s);if(o&&Array.isArray(o.s))return{title:o.t||"",date:o.d||"",shows:o.s.map(a=>({name:a[0],venue:a[1],start:a[2],end:a[3],price:a[4],booked:a[5]?1:0,organiser:a[6],link:a[7]||"",genres:a[8]||"",fullAddress:a[9]||"",address:a[9]||"",venueCode:a[10]||"",duration:a[11]||"",lat:(a[12]!==""&&a[12]!=null?Number(a[12]):null),lng:(a[13]!==""&&a[13]!=null?Number(a[13]):null)}))};if(o&&o.shows)return o;}}catch(e){}try{return JSON.parse(decodeURIComponent(atob(t)));}catch(e){return null;}}
 class ErrorBoundary extends Component{
   constructor(p){super(p);this.state={err:null};}
   static getDerivedStateFromError(e){return {err:e};}
@@ -1128,7 +1127,7 @@ function AddShowList({shows,onAdd,catNote,onDone}){
   const list=(()=>{const base=[...(shows||[])].filter(s=>s&&s.name).sort((a,b)=>{const ta=timeToMinutes(a.start),tb=timeToMinutes(b.start);return (ta==null?1e9:ta)-(tb==null?1e9:tb);}).filter(s=>!t||s.name.toLowerCase().includes(t)||(s.venue||"").toLowerCase().includes(t)||(s.artist||"").toLowerCase().includes(t));const seen=new Set();const dd=[];for(const s of base){const k=s.name.toLowerCase()+"|"+((s.venue||"").toLowerCase());if(seen.has(k))continue;seen.add(k);dd.push(s);}return dd;})();
   const capped=list.slice(0,60);
   return (<div style={{marginTop:8}}>
-    <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by show, venue or artist..." aria-label="Search shows to add" style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"rgba(255,255,255,0.06)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:6}}/>
+    <input value={q} onChange={e=>setQ(e.target.value)} placeholder="Search by show, venue or artist..." aria-label="Search shows to add" style={{width:"100%",padding:"7px 10px",borderRadius:8,border:`1px solid ${CARD_BORDER}`,background:"var(--card)",color:TXT,fontSize:13,outline:"none",boxSizing:"border-box",marginBottom:6}}/>
     {catNote&&<div style={{fontSize:11,color:TXT3,margin:"0 2px 8px"}}>{catNote}</div>}
     <div style={{maxHeight:"max(240px, calc(100vh - 320px))",overflowY:"auto",border:`1px solid ${CARD_BORDER}`,borderRadius:10}}>
       {capped.map((s,i)=>(<div key={i} onClick={()=>onAdd(s)} style={{display:"flex",alignItems:"center",gap:9,padding:"8px 10px",borderBottom:`1px solid ${CARD_BORDER}`,cursor:"pointer"}}>
@@ -1179,7 +1178,7 @@ function ProposalDay({date,shows}){
   const items=(shows||[]).filter(s=>s.start).map(s=>{const sm=normDayMin(s.start);let em=normDayMin(s.end);if(em==null||em<=sm)em=sm+60;return {...s,_s:sm,_e:em};}).sort((a,b)=>a._s-b._s);
   const st=proposalStats(shows);
   const dl=date?(()=>{const d=new Date(date+"T12:00:00");return `${DAYS_FULL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;})():"Pick a day";
-  const summary=(<div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(255,255,255,0.05)",fontWeight:600,lineHeight:1.5,textAlign:"center"}}><span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span></div>);
+  const summary=(<div style={{fontSize:13,color:TXT2,marginBottom:12,padding:"10px 12px",borderRadius:10,background:"rgba(128,128,128,0.08)",fontWeight:600,lineHeight:1.5,textAlign:"center"}}><span style={{color:TXT,fontWeight:800}}>{dl}</span> · starts <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.startMin)}</span> · ends <span style={{color:TXT,fontWeight:800}}>{fmtMin(st.endMin)}</span> · costs <span style={{color:TXT,fontWeight:800}}>£{st.cost.toFixed(2)}</span></div>);
   if(items.length===0)return <div>{summary}<div style={{fontSize:13,color:TXT3,textAlign:"center",padding:"14px"}}>No shows with times yet.</div></div>;
   const minS=Math.min(...items.map(i=>i._s)),maxE=Math.max(...items.map(i=>i._e));
   const startH=Math.floor(minS/60),endH=Math.ceil(maxE/60),HOUR=86,rangeTop=startH*60,gh=(endH-startH)*HOUR;
@@ -1189,19 +1188,20 @@ function ProposalDay({date,shows}){
   const travels=[];for(let k=1;k<items.length;k++){const a=items[k-1],b=items[k];const gap=b._s-a._e;if(gap<0)continue;const need=requiredGapMin(a,b);const w=walkMinutes(a,b);travels.push({top:(a._e-rangeTop)/60*HOUR,h:Math.max(18,gap/60*HOUR-2),ok:gap>=need,gap,need,w});}
   return (<div>
     {summary}
-    <div style={{display:"flex",background:"rgba(255,255,255,0.02)",borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflowY:"auto",overflowX:"hidden",maxHeight:"min(1290px, calc(100vh - 170px))"}}>
+    <div style={{display:"flex",background:"var(--card)",borderRadius:12,border:`1px solid ${CARD_BORDER}`,overflowY:"auto",overflowX:"hidden",maxHeight:"min(1290px, calc(100vh - 170px))"}}>
       <div style={{width:46,flexShrink:0,position:"relative",height:gh}}>
         {Array.from({length:endH-startH+1},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR-6,right:6,fontSize:11,color:TXT2,fontWeight:600}}>{formatHour(((startH+i)%24)*60)}</div>))}
       </div>
       <div style={{flex:1,position:"relative",height:gh,borderLeft:`1px solid ${CARD_BORDER}`}}>
-        {Array.from({length:endH-startH},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR,left:0,right:0,height:1,background:"rgba(255,255,255,0.06)"}}/>))}
+        {Array.from({length:endH-startH},(_,i)=>(<div key={i} style={{position:"absolute",top:i*HOUR,left:0,right:0,height:1,background:"var(--card)"}}/>))}
         {travels.map((t,i)=>(<div key={"t"+i} style={{position:"absolute",top:t.top+1,height:t.h,left:2,right:2,borderRadius:6,zIndex:1,background:t.ok?"rgba(52,211,153,0.14)":"rgba(239,68,68,0.16)",border:`1px dashed ${t.ok?"#34D399":"#EF4444"}`,display:"flex",alignItems:"center",justifyContent:"center",gap:5,overflow:"hidden",fontSize:11,fontWeight:700,color:t.ok?"#34D399":"#EF4444",padding:"0 6px",textAlign:"center"}}>🚶 {t.w!=null?`${t.w} min walk`:"walk"} · {t.gap} min gap{t.ok?"":` · too tight, need ${t.need}`}</div>))}
         {items.map((it,k)=>{const top=(it._s-rangeTop)/60*HOUR;const bh=Math.max(50,(it._e-it._s)/60*HOUR-2);const w=100/nLanes;const col=gc2(it.organiser).bg;const proposed=!it.booked;return(
           <div key={k} title={it.fullAddress||it.address||it.venue||""} style={{position:"absolute",top,height:bh,left:`calc(${it._lane*w}% + 3px)`,width:`calc(${w}% - 6px)`,background:col,opacity:proposed?1:0.4,borderRadius:8,padding:"5px 8px",overflow:"hidden",color:"#fff",boxSizing:"border-box",zIndex:2,display:"flex",alignItems:"flex-start",justifyContent:"space-between",gap:6,boxShadow:it._ov?"0 0 0 2px #EF4444":"none",border:proposed?"none":"1px dashed rgba(255,255,255,0.6)"}}>
             <div style={{minWidth:0,flex:1}}>
               <div style={{fontSize:13,fontWeight:700,lineHeight:1.2,wordBreak:"break-word"}}>{it.name}</div>
-              <GenrePills show={it} dark/>
-              <div style={{fontSize:14,fontWeight:600,opacity:0.9,whiteSpace:"nowrap"}}>{formatTime(it.start)}{proposed?"":" · booked"}</div>
+              <div style={{fontSize:12,fontWeight:600,opacity:0.9,whiteSpace:"nowrap"}}>{formatTime(it.start)}{it.end?"–"+formatTime(it.end):""}{(()=>{const dm=durationMinutes(it);return dm?` (${dm}m)`:it.duration?` (${it.duration})`:"";})()}{proposed?"":" · booked"}</div>
+              <div style={{fontSize:11,opacity:0.75,lineHeight:1.2,marginTop:2}}>{it.venue||""}</div>
+              {(it.fullAddress||it.address)&&<div style={{fontSize:10,opacity:0.6,lineHeight:1.2,marginTop:1,wordBreak:"break-word"}}>{it.fullAddress||it.address}</div>}
             </div>
             <div style={{display:"flex",alignItems:"center",gap:6,flexShrink:0}}>
               {it.price&&<span style={{fontSize:15,fontWeight:800,whiteSpace:"nowrap"}}>{it.price}</span>}
@@ -1274,12 +1274,12 @@ function ShowCard({show,onClick,review,onRate,wishlist,interest,onInterest,tags,
 
 function gc2(org){return OC[org]||{bg:"#64748B",glow:"rgba(100,116,139,0.3)"};}
 
-function MultiDrop({open,onToggle,label,icon,options,selected,onSelect,onClear,accent="#93C5FD"}){
+function MultiDrop({open,onToggle,label,icon,options,selected,onSelect,onClear,accent="#93C5FD",up}){
   const n=selected.length;
   return (
     <div style={{position:"relative"}}>
       <button onClick={onToggle} style={{padding:"7px 14px",borderRadius:20,border:`1px solid ${CARD_BORDER}`,fontSize:13,fontWeight:700,cursor:"pointer",background:n?accent+"22":"rgba(255,255,255,0.06)",color:n?accent:TXT,display:"inline-flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{n?label+" ("+n+")":label} ▾</button>
-      {open&&(<div style={{position:"absolute",top:"calc(100% + 6px)",left:0,zIndex:60,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:12,padding:6,minWidth:180,maxHeight:280,overflowY:"auto",boxShadow:"0 10px 30px rgba(0,0,0,0.6)"}}>
+      {open&&(<div style={{position:"absolute",...(up?{bottom:"calc(100% + 6px)"}:{top:"calc(100% + 6px)"}),left:0,zIndex:60,background:"var(--card-solid)",border:`1px solid ${CARD_BORDER}`,borderRadius:12,padding:6,minWidth:180,maxHeight:280,overflowY:"auto",boxShadow:"0 10px 30px rgba(0,0,0,0.6)"}}>
         {n>0&&<div onClick={onClear} style={{fontSize:12,color:accent,fontWeight:700,padding:"5px 8px",cursor:"pointer"}}>Clear all</div>}
         {options.length===0&&<div style={{fontSize:12,color:TXT3,padding:"7px 8px",whiteSpace:"nowrap"}}>Nothing to filter yet</div>}
         {options.map(opt=>(<label key={opt.value} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 8px",cursor:"pointer",fontSize:13,color:TXT,borderRadius:8,background:selected.includes(opt.value)?accent+"26":"transparent"}}><input type="checkbox" checked={selected.includes(opt.value)} onChange={()=>onSelect(opt.value)} style={{accentColor:accent}}/>{opt.dot&&<span style={{width:9,height:9,borderRadius:3,background:opt.dot,display:"inline-block",flexShrink:0}}/>}{opt.label}</label>))}
@@ -1288,7 +1288,7 @@ function MultiDrop({open,onToggle,label,icon,options,selected,onSelect,onClear,a
   );
 }
 function TabBtn({active,onClick,children,accent}){
-  return <button onClick={onClick} style={{padding:"8px 20px",borderRadius:24,border:"none",fontSize:14,fontWeight:700,cursor:"pointer",letterSpacing:"0.3px",background:active?"rgba(255,255,255,0.14)":"transparent",color:active?"#fff":TXT2,transition:"all 0.15s"}}>{children}</button>;
+  return <button onClick={onClick} style={{padding:"8px 20px",borderRadius:24,border:"none",fontSize:14,fontWeight:700,cursor:"pointer",letterSpacing:"0.3px",background:active?ACCENT:"transparent",color:active?"#fff":TXT2,transition:"all 0.15s"}}>{children}</button>;
 }
 function Chip({a,o,children,c}){
   const bg=c||"#FF4D6A";
